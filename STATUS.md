@@ -33,13 +33,14 @@ All 36 active tickets in `07_FEATURE_TICKETS.md` (CS-001 … CS-064). CS-046 is 
 ## Blockers
 
 1. ~~No git remote configured.~~ **Resolved 2026-09-11** — remote `origin` set to `https://github.com/tony19053000/CALLSPAWN.git`, branch `main` pushed and tracking.
-2. **No credentials present.** `GEMINI_API_KEY` and `CALLE_API_KEY` are unset, so live LLM calls, live research and live calls cannot run yet. Fake providers cover all development and testing.
+2. **No credentials present for the backend paths.** `GEMINI_API_KEY` and `CALLE_API_KEY` are unset, so live LLM calls, live research and backend-initiated live calls cannot run yet. Fake providers cover all development and testing. The CALL-E **CLI** is separately authenticated via browser OAuth and is usable now.
+3. **CALL-E skill not installed.** `npx -y skills add https://github.com/CALLE-AI/call-e-integrations --skill calle -g` was blocked by the auto-mode permission classifier (remote package install at global scope). The CLI it depends on is installed and authenticated, so nothing is blocked functionally; the skill needs an explicit approval or a manual run by the user.
 
 ## CALL-E state
 
 - **Integration chosen:** Developer API over HTTP from the Python backend (`CalleProvider`), with `calle-ai` SDK usage where it maps cleanly. MCP (`plan_call` / `run_call` / `get_call_run`) documented as the alternate path.
 - **Contract verified:** 2026-09-11, against the official integrations repo, docs site and OpenAPI spec `0.7.0`. Snapshot vendored.
-- **Auth state:** no API key configured.
+- **Auth state:** CLI authenticated. `@call-e/cli` installed globally on 2026-09-11; `calle auth status` reports `usable: true`, token cached at `~/.calle-mcp/cli/.../token.json`, expiry `2029-06-05T02:50:29Z`. `calle mcp tools` confirms `plan_call`, `run_call`, `get_call_run`. No `CALLE_API_KEY` yet for the backend HTTP path — see Blockers.
 - **Live calls:** DISABLED (`CALLE_LIVE_CALLS_ENABLED=false`, `CALL_PROVIDER=fake`).
 - **Real test status:** not yet attempted (ticket CS-062).
 

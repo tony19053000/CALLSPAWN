@@ -11,7 +11,25 @@ Sources: `https://github.com/CALLE-AI/call-e-integrations`, `https://docs.heycal
 | Python SDK | `pip install calle-ai` → `from calle import CalleClient`; `client.calls.create_and_wait(task=..., result_schema=...)` |
 | TypeScript SDK | `pnpm add @call-e/calle` |
 | Developer API | Base `https://api.heycall-e.com`, `Authorization: Bearer $CALLE_API_KEY` |
-| MCP | Streamable HTTP at `https://seleven-mcp-sg.airudder.com/mcp/openagent_oauth`, OAuth, tools `plan_call`, `run_call`, `get_call_run` |
+| MCP | Streamable HTTP at `https://seleven-mcp-sg.airudder.com/mcp/openagent_oauth`, OAuth, tools `plan_call`, `run_call`, `get_call_run` (plus `track_ui_events`, telemetry only) |
+| CLI | `npm install -g @call-e/cli` → `calle auth login`, `calle call plan|start|run|status|recover`, `calle mcp tools|call` |
+
+### Installed locally on 2026-09-11
+
+`@call-e/cli` is installed globally and authenticated; `calle auth status` reports `usable: true` with the token valid to 2029-06-05. `calle mcp tools` confirms the live tool list.
+
+Verified tool parameters (from the live MCP server, not from documentation):
+
+```text
+plan_call     goal, to_phones, region, language, scheduled_at, plan_id,
+              user_input, ttl_seconds, retry_confirmation_action
+run_call      plan_id, confirm_token, ttl_seconds
+get_call_run  run_id, cursor, limit
+```
+
+`plan_call` returns `plan_id`, `confirm_token` and `ready_to_run`; `run_call` consumes the first two. `get_call_run` is paginated by `cursor`/`limit`, matching the pagination rule already recorded for the events endpoint.
+
+Two details worth keeping: the server explicitly instructs clients **not to guess a region or reformat an ambiguous phone number** — pass the user's raw message through `user_input` instead. CallSwarm follows this: a candidate phone number that is not unambiguously E.164 is an information gap, not a guess. And `calle call recover` exists precisely to resolve an uncertain `run_call` submission, which independently corroborates the reconciliation-not-retry rule below.
 
 ## Chosen integration path
 
