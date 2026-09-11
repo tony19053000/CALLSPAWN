@@ -1,18 +1,18 @@
 # STATUS — CallSwarm
 
-_Last updated: 2026-09-11 (Phase 3 complete)_
+_Last updated: 2026-09-11 (Phase 4a complete)_
 
 ## Overall completion
 
-**40%** — Phases 0–3 complete (13 of 36 active tickets, all reviewer-PASSed). Foundation, dynamic-swarm core, and the research layer: pluggable providers with mandatory provenance, SSRF-hardened page fetcher, domain-agnostic normalization and constraint filtering, KNOWN/UNKNOWN/CONFLICTED gap engine.
+**50%** — Phases 0–3 and 4a complete (17 of 36 active tickets, all reviewer-PASSed). Foundation, dynamic-swarm core, research layer, and the call-planning and authorization core: gated provider base, fake provider, CALL-E-constrained result schemas, deterministic call-value scoring and selection, approval service and gates.
 
 ## Current phase
 
-Phase 3 complete → Phase 4 (Calls).
+Phase 4a complete → Phase 4b (real CALL-E provider, patterns, webhook).
 
 ## Current ticket
 
-`CS-030 — Call value scoring and selection` (PENDING).
+`CS-032 — CALL-E provider implementation` (PENDING).
 
 ## Completed
 
@@ -28,13 +28,15 @@ Phase 3 complete → Phase 4 (Calls).
 
 - **Phase 3 (CS-020…CS-022) — reviewer PASS 2026-09-11** after two FAILs (SSRF: no private-address refusal; then DNS-rebinding TOCTOU between check and connect). `research/provider.py` protocol with provenance required at the model level; `research/fixture.py` (`source_type=FIXTURE` as a fixed class attribute, no override); `research/live.py` `GeminiGroundedResearchProvider` against verified `google-genai` 2.23.0 types with honest snippet labelling; `research/fetch.py` `PublicPageFetcher` with scheme/userinfo refusal, robots.txt, timeout, size cap, content-type restriction, per-hop redirect checks, and a once-per-hop resolve-validate-pin guard (URL host rewritten to the validated IP, `Host` preserved, `sni_hostname` extension for TLS); `research/service.py` provider selection with loud fixture fallback surfaced in `/health` and as a blocker event; `research/pipeline.py` normalize/dedup/hard-constraint filter; `research/gaps.py` gap engine and knowledge table. Research stubs in `agents/tools.py` replaced with real, fenced tool calls. 246 tests.
 
+- **Phase 4a (CS-030, CS-031, CS-033, CS-034) — reviewer PASS 2026-09-11** with two medium non-blocking findings fixed before commit. `calls/provider.py` protocol + `GatedCallProvider` whose `@final` `execute` reloads intent/approval/mission from the DB by id and runs the gate before the abstract `_execute_authorized`, with an `__init_subclass__` guard against override; `calls/fake.py` default provider, `is_simulated` class constant, real status sequence, scripted outcomes incl. `None` and validation-failed; `CALL_PROVIDER=calle` raises at startup, never falls back; `calls/schema.py` CALL-E-subset validator (enums must contain `unknown`, booleans rejected, required-but-omittable rejected, reserved names rejected) with one guided retry; `calls/scoring.py` pure `compute_priority` + `select_calls` with a reason for every rejection; `calls/strategy.py` intents per callable candidate, code-validated patterns, `raw_phone` → gap not intent; `approvals/` service + `POST .../decision` with a required typed body (422 on anything else); `calls/gates.py` ordered gates each emitting a number-free refusal event; `calls/regions.py` quiet hours by region; `CallService.execute_call` idempotent on repeat. 357 tests.
+
 ## In progress
 
 Nothing.
 
 ## Pending
 
-23 active tickets: CS-030 … CS-064 (excluding CS-046, deferred).
+19 active tickets: CS-032, CS-035, CS-036, CS-040 … CS-064 (excluding CS-046, deferred).
 
 ## Blockers
 
@@ -64,10 +66,10 @@ Nothing.
 
 | Suite | State |
 | --- | --- |
-| Unit + integration (backend) | 246 passed — `backend/.venv/bin/python -m pytest` |
+| Unit + integration (backend) | 357 passed — `backend/.venv/bin/python -m pytest` |
 | End-to-end | not created (CS-060) |
 | Lint (ruff) | All checks passed |
-| Typecheck (mypy, strict) | Success: no issues found in 69 source files |
+| Typecheck (mypy, strict) | Success: no issues found in 85 source files |
 | Build (frontend) | not created (CS-050) |
 
 Test suite blocks all socket connects via `tests/conftest.py`; runs with `CALL_PROVIDER=fake`, `CALLE_LIVE_CALLS_ENABLED=false`.
@@ -149,4 +151,14 @@ Default-off call posture and secret handling are specified in `05_SECURITY_SAFET
 
 **Known limits, stated.** SSRF guard does not cover a compromised public host or an externally configured proxy. Live grounding untested against the network.
 
-**Next.** Phase 4 — CS-031 fake provider, CS-033 schema generator, CS-030 scoring, CS-034 approval gates, CS-032 CALL-E provider, CS-035 patterns, CS-036 webhook.
+### 2026-09-11 — Phase 4a: call planning and authorization core (CS-030, CS-031, CS-033, CS-034)
+
+**Built.** The authorization core. The reviewer actively attempted every bypass listed in the ticket — hand-built `AuthorizedPlan` against PENDING/REJECTED/expired/mismatched/nonexistent approvals, lowercase and extra-field decision bodies, empty allow-list under live semantics, direct `provider.execute` without approval — and none dialed.
+
+**Decisions.** Schemas are generated only for *selected* intents, so rejected calls spend no model tokens; a selected intent whose schema fails is rejected with that reason. The fake provider still requires an `APPROVED` approval (so the full flow rehearses offline) but not the env switch or the allow-list — those are live-only gates. `APPROVED` past `expires_at` is treated as expired by both the gate and `authorize`. An in-provider gate refusal after `CALL_EXECUTION_RUNNING` moves the mission to `BLOCKED` — the pre-check makes this a race-only path; CS-032 may refine it for transient network errors. `ApprovalService.request` is not called automatically by `CallStrategy.plan`; the Orchestrator loop will. Structured result fields become `PHONE_SUPPORTED` claims (`"unknown"` values skipped) with `source_type` `SIMULATED` or `PHONE`; `summary`/`evidence[]` become `UNKNOWN`-status low-confidence claims. Quiet hours for a multi-zone country refuse if *any* zone is in quiet hours.
+
+**Review.** Sonnet, diff-scoped, PASS. Two medium findings fixed before commit: `{"type": ["boolean","null"]}` crashed the validator with `TypeError` instead of a clean rejection; and `execute` was documented final but not enforced — now `@final` plus an `__init_subclass__` runtime guard — with a second `execute_call` on the same intent previously hitting an uncaught duplicate-PK error, now an idempotent no-op returning the existing run. A late test flake was wall-clock quiet hours (the default `SG` test region entered 21:00–09:00 during the session); `conftest.py` now picks a zone currently in daytime.
+
+**Must not be changed accidentally.** `GatedCallProvider.execute` finality and its DB-reload of intent/approval/mission; gate order in `calls/gates.py`; "empty allow-list = allow none when live"; `CALL_PROVIDER=calle` hard failure without an implementation.
+
+**Next.** Phase 4b — CS-032 `CalleProvider` against the Developer API (re-confirm base URL against live docs first), CS-035 call patterns, CS-036 webhook receiver. Review on Opus per the escalation rule.

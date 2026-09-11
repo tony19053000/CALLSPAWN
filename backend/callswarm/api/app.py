@@ -15,8 +15,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from callswarm import __version__
-from callswarm.api import events, health, missions
+from callswarm.api import approvals, events, health, missions
 from callswarm.api.sanitizer_middleware import SanitizingJSONMiddleware
+from callswarm.calls.gates import CallGate
+from callswarm.calls.service import select_call_provider
 from callswarm.config.settings import Settings, get_settings
 from callswarm.events import ActivityEventEmitter
 from callswarm.llm import LLMProvider
@@ -62,6 +64,10 @@ def create_app(
                 )
         else:
             logger.warning("LLM not configured; reasoning provider unavailable")
+        # Raises CallProviderNotAvailable for an unimplemented provider: the
+        # process must not start with a fake standing in for a real dialer.
+        app.state.call_gate = CallGate(database, app.state.emitter)
+        app.state.call_provider = select_call_provider(resolved, database, app.state.emitter)
         selection = select_research_provider(resolved)
         app.state.research_provider = selection.provider
         app.state.research = ResearchService(
@@ -72,9 +78,11 @@ def create_app(
             fallback_reason=selection.fallback_reason,
         )
         logger.info(
-            "CallSwarm %s: call_provider=%s live_calls=%s research=%s (effective %s) db=%s",
+            "CallSwarm %s: call_provider=%s (simulated=%s) live_calls=%s research=%s "
+            "(effective %s) db=%s",
             __version__,
-            resolved.call_provider,
+            app.state.call_provider.name,
+            app.state.call_provider.is_simulated,
             resolved.calle_live_calls_enabled,
             resolved.research_provider,
             selection.provider.name,
@@ -97,6 +105,7 @@ def create_app(
     app.include_router(health.router)
     app.include_router(missions.router)
     app.include_router(events.router)
+    app.include_router(approvals.router)
     return app
 
 

@@ -18,12 +18,24 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from callswarm.api.app import create_app
+from callswarm.approvals import ApprovalService
+from callswarm.calls.fake import FakeCallProvider
+from callswarm.calls.gates import CallGate
+from callswarm.calls.service import CallService
 from callswarm.config.settings import Settings
 from callswarm.events import ActivityEventEmitter
 from callswarm.llm import FakeLLMProvider
-from callswarm.models import Mission, MissionStatus
+from callswarm.models import (
+    AuthorityPolicy,
+    CallAuthorizationState,
+    CallBudget,
+    CallIntent,
+    CallRecipient,
+    Mission,
+    MissionStatus,
+)
 from callswarm.orchestrator.state_machine import MissionStateMachine
-from callswarm.persistence import Database, MissionRepository
+from callswarm.persistence import CallIntentRepository, Database, MissionRepository
 from callswarm.sanitize import Sanitizer
 
 
@@ -140,3 +152,112 @@ async def set_mission_status(
         return await MissionRepository(session).update(
             mission.model_copy(update={"status": status})
         )
+
+
+# --- Phase 4 fixtures -----------------------------------------------------------
+
+
+TEST_PHONE = "+15550000123"  # reserved-style placeholder, not a real number
+TEST_PHONE_2 = "+15550000456"
+
+_DAYTIME_PROBE_ZONES = (
+    "Asia/Singapore",
+    "Europe/London",
+    "America/New_York",
+    "America/Los_Angeles",
+    "Pacific/Auckland",
+    "Asia/Dubai",
+)
+
+
+def daytime_region() -> str:
+    """An IANA zone where it is currently between 09:00 and 21:00 local time, so
+    tests that run against the real clock never trip the quiet-hours gate.
+    Tests of the gate itself pass an explicit region and ``now``."""
+    from zoneinfo import ZoneInfo
+
+    from callswarm.models import utcnow
+
+    now = utcnow()
+    for name in _DAYTIME_PROBE_ZONES:
+        hour = now.astimezone(ZoneInfo(name)).hour
+        if 9 <= hour < 21:
+            return name
+    raise AssertionError("no probe zone is in daytime; extend _DAYTIME_PROBE_ZONES")
+
+
+@pytest.fixture
+async def call_gate(database: Database, emitter: ActivityEventEmitter) -> CallGate:
+    return CallGate(database, emitter)
+
+
+@pytest.fixture
+async def fake_provider(
+    call_gate: CallGate, settings: Settings, database: Database
+) -> FakeCallProvider:
+    return FakeCallProvider(call_gate, settings, database)
+
+
+@pytest.fixture
+async def approval_service(
+    database: Database,
+    emitter: ActivityEventEmitter,
+    settings: Settings,
+    state_machine: MissionStateMachine,
+) -> ApprovalService:
+    return ApprovalService(database, emitter, settings, state_machine)
+
+
+@pytest.fixture
+async def call_service(
+    fake_provider: FakeCallProvider,
+    call_gate: CallGate,
+    approval_service: ApprovalService,
+    database: Database,
+    emitter: ActivityEventEmitter,
+    settings: Settings,
+    state_machine: MissionStateMachine,
+) -> CallService:
+    return CallService(
+        fake_provider, call_gate, approval_service, database, emitter, settings, state_machine
+    )
+
+
+@pytest.fixture
+async def call_mission(database: Database) -> Mission:
+    """A mission that permits up to three calls, positioned at CALL_AUTHORIZED."""
+    async with database.session() as session:
+        return await MissionRepository(session).add(
+            Mission(
+                user_goal="test goal",
+                status=MissionStatus.CALL_AUTHORIZED,
+                authority_policy=AuthorityPolicy(calls_allowed=True, max_call_count=3),
+                call_budget=CallBudget(max_calls=3),
+            )
+        )
+
+
+def make_intent(
+    mission_id: str,
+    *,
+    phone: str = TEST_PHONE,
+    region: str | None = "DAYTIME",
+    entity_id: str | None = None,
+    result_schema: dict[str, Any] | None = None,
+    purpose: str = "confirm an open question",
+) -> CallIntent:
+    if region == "DAYTIME":
+        region = daytime_region()
+    return CallIntent(
+        mission_id=mission_id,
+        recipients=[CallRecipient(phone_e164=phone, region=region, entity_id=entity_id)],
+        purpose=purpose,
+        call_goal="Ask the recipient the listed questions on behalf of the user.",
+        authorization_state=CallAuthorizationState.PENDING,
+        result_schema=result_schema or {},
+    )
+
+
+async def persist_intent(database: Database, intent: CallIntent) -> CallIntent:
+    async with database.session() as session:
+        return await CallIntentRepository(session).add(intent)

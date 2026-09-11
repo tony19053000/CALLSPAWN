@@ -21,6 +21,9 @@ class CapabilityReport(BaseModel):
     llm_model_status: LLMModelStatus
     llm_model_detail: str | None = None
     call_provider: str
+    call_provider_simulated: bool = Field(
+        default=True, description="True unless a real call provider is active."
+    )
     live_calls_enabled: bool
     calle_configured: bool
     research_provider: str
@@ -41,6 +44,7 @@ def build_capability_report(
     llm_model_detail: str | None = None,
     research_provider_effective: str | None = None,
     research_fallback_reason: str | None = None,
+    call_provider_simulated: bool = True,
 ) -> CapabilityReport:
     return CapabilityReport(
         version=version,
@@ -49,6 +53,7 @@ def build_capability_report(
         llm_model_status=llm_model_status,
         llm_model_detail=llm_model_detail,
         call_provider=settings.call_provider,
+        call_provider_simulated=call_provider_simulated,
         live_calls_enabled=settings.calle_live_calls_enabled,
         calle_configured=settings.calle_configured,
         research_provider=settings.research_provider,

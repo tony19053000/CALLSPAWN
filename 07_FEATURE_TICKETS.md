@@ -174,7 +174,7 @@ Framework components (Orchestrator, Strategy Architect, Call Strategy, Evidence 
 **Tests** Determinism given fixed factors; budget cap; the "9 possible, 3 selected" scenario.
 **Safety** Blocked intents stay blocked regardless of score.
 **Demo** The differentiating beat: the swarm declining to call.
-**Status** PENDING
+**Status** DONE
 
 ### CS-031 — Call provider abstraction and fake provider
 **Purpose** A testable call surface that cannot dial by accident.
@@ -185,7 +185,7 @@ Framework components (Orchestrator, Strategy Architect, Call Strategy, Evidence 
 **Tests** Default-provider assertion; a network-blocking test over the whole suite; a test that a plan option derived from a fake call is flagged simulated.
 **Safety** The core no-accidental-call control.
 **Demo** Enables offline rehearsal.
-**Status** PENDING
+**Status** DONE
 
 ### CS-032 — CALL-E provider implementation
 **Purpose** Real calls through the verified API.
@@ -209,7 +209,7 @@ The validator also rejects any **required non-enum field whose description impli
 **Tests** Constraint validator over generated and hand-written schemas; reserved-name rejection; required-but-omittable rejection.
 **Safety** Prevents silently invalid extraction.
 **Demo** The requested-fields list in the call panel.
-**Status** PENDING
+**Status** DONE
 
 ### CS-034 — Authorization and approval gates
 **Purpose** Nothing dials without explicit permission.
@@ -220,7 +220,7 @@ The validator also rejects any **required non-enum field whose description impli
 **Tests** Each gate independently and combined; a test proving chat text cannot authorize; a test proving a malformed decision body cannot approve.
 **Safety** The central safety ticket.
 **Demo** The human-in-the-loop moment.
-**Status** PENDING
+**Status** DONE
 
 ### CS-035 — Call patterns
 **Purpose** Structured multi-call workflows.

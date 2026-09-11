@@ -315,6 +315,14 @@ class CallRunRepository(Repository[CallRun, CallRunRow]):
         row = result.scalar_one_or_none()
         return None if row is None else await self._with_recipients(self._from_row(row))
 
+    async def list_by_intent(self, call_intent_id: str) -> list[CallRun]:
+        result = await self.session.execute(
+            select(CallRunRow)
+            .where(CallRunRow.call_intent_id == call_intent_id)
+            .order_by(CallRunRow.created_at)
+        )
+        return [await self._with_recipients(self._from_row(row)) for row in result.scalars()]
+
     async def list_by_mission(self, mission_id: str) -> list[CallRun]:
         runs = await super().list_by_mission(mission_id)
         return [await self._with_recipients(run) for run in runs]

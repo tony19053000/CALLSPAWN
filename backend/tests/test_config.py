@@ -123,6 +123,7 @@ async def test_health_reports_capabilities_without_secrets(tmp_path: Path) -> No
     assert body["llm_model"] == "gemini-3.5-flash"
     assert body["llm_model_status"] == "unavailable"  # blocked network, reported not crashed
     assert body["call_provider"] == "fake"
+    assert body["call_provider_simulated"] is True
     assert body["live_calls_enabled"] is False
     assert body["calle_configured"] is True
     assert body["research_provider"] == "fixture"
@@ -135,6 +136,7 @@ async def test_health_reports_capabilities_without_secrets(tmp_path: Path) -> No
         "llm_model_status",
         "llm_model_detail",
         "call_provider",
+        "call_provider_simulated",
         "live_calls_enabled",
         "calle_configured",
         "research_provider",

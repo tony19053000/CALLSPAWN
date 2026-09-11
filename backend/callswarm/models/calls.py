@@ -24,15 +24,19 @@ class CallRecipient(DomainModel):
 
 
 class CallValueFactors(DomainModel):
-    """Individually estimated factors. The final score is computed by code."""
+    """Individually estimated factors, each in [0, 1]. The model estimates
+    these; the final priority is computed by ``calls/scoring.py`` and never
+    by the model. ``redundancy`` and ``call_cost`` are penalties (higher is
+    worse); every other factor is a positive contribution."""
 
     mission_impact: float = Field(ge=0.0, le=1.0)
     uncertainty: float = Field(ge=0.0, le=1.0)
     time_sensitivity: float = Field(ge=0.0, le=1.0)
     expected_value: float = Field(ge=0.0, le=1.0)
-    strategy_changing_potential: float = Field(ge=0.0, le=1.0)
-    redundancy: float = Field(ge=0.0, le=1.0)
-    call_cost: float = Field(ge=0.0, le=1.0)
+    strategy_change_potential: float = Field(ge=0.0, le=1.0)
+    evidence_importance: float = Field(ge=0.0, le=1.0)
+    redundancy: float = Field(ge=0.0, le=1.0, description="Higher = more redundant")
+    call_cost: float = Field(ge=0.0, le=1.0, description="Higher = costlier")
 
 
 class CallIntent(IdentifiedModel):

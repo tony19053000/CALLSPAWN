@@ -35,6 +35,8 @@ def _check_node(node: Any, path: str, depth: int) -> None:
     if unknown:
         raise SchemaError(f"{path}: unsupported schema keys {unknown}")
     node_type = node.get("type")
+    if not isinstance(node_type, str):
+        raise SchemaError(f"{path}: 'type' must be a single string")
     if node_type not in ALLOWED_TYPES:
         raise SchemaError(f"{path}: 'type' must be one of {sorted(ALLOWED_TYPES)}")
     if "description" in node and not isinstance(node["description"], str):

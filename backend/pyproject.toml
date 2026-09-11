@@ -53,6 +53,9 @@ ignore = ["RUF012"]
 "callswarm/agents/runner.py" = ["N818"]
 "callswarm/strategies/architect.py" = ["N818"]
 "callswarm/research/provider.py" = ["N818"]
+"callswarm/calls/provider.py" = ["N818"]
+"callswarm/calls/schema.py" = ["N818"]
+"callswarm/approvals/service.py" = ["N818"]
 
 [tool.mypy]
 python_version = "3.11"

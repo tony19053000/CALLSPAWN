@@ -15,6 +15,7 @@ router = APIRouter()
 async def health(request: Request) -> CapabilityReport:
     verification: ModelVerification = request.app.state.llm_verification
     research = getattr(request.app.state, "research", None)
+    call_provider = getattr(request.app.state, "call_provider", None)
     return build_capability_report(
         request.app.state.settings,
         version=__version__,
@@ -22,4 +23,5 @@ async def health(request: Request) -> CapabilityReport:
         llm_model_detail=verification.detail,
         research_provider_effective=None if research is None else research.provider.name,
         research_fallback_reason=None if research is None else research.fallback_reason,
+        call_provider_simulated=True if call_provider is None else call_provider.is_simulated,
     )

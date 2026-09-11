@@ -83,6 +83,22 @@ class Settings(BaseSettings):
     call_quiet_hours_start: str = "21:00"
     call_quiet_hours_end: str = "09:00"
     call_allowed_recipients: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # Minutes a PENDING approval stays decidable before ``expire_stale`` marks it EXPIRED.
+    approval_ttl_minutes: int = Field(default=60, ge=1)
+
+    # --- Call value scoring (deterministic; see calls/scoring.py) --------------
+    # Intents scoring below this priority are not selected.
+    call_min_priority: float = Field(default=0.35, ge=0.0, le=1.0)
+    # Positive-factor weights sum to 1.0 so the positive term lies in [0, 1];
+    # the two penalties are subtracted and the result is clamped to [0, 1].
+    call_weight_mission_impact: float = Field(default=0.25, ge=0.0)
+    call_weight_uncertainty: float = Field(default=0.15, ge=0.0)
+    call_weight_time_sensitivity: float = Field(default=0.10, ge=0.0)
+    call_weight_expected_value: float = Field(default=0.20, ge=0.0)
+    call_weight_strategy_change_potential: float = Field(default=0.15, ge=0.0)
+    call_weight_evidence_importance: float = Field(default=0.15, ge=0.0)
+    call_weight_redundancy: float = Field(default=0.50, ge=0.0)
+    call_weight_call_cost: float = Field(default=0.30, ge=0.0)
 
     # --- Research provider ---------------------------------------------------
     research_provider: ResearchProviderName = "fixture"
