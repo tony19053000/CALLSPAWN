@@ -32,6 +32,22 @@ The `coder` and `reviewer-tester` agents live in `.claude/agents/`. The coder ne
 10. **No fabricated savings, no fixtures shown as live data, no mock marked production-ready.** Fixture and simulated claims carry `source_type` `FIXTURE`/`SIMULATED` all the way to the UI badge.
 11. **Verify CALL-E and SDK surfaces against current official docs** before changing an integration. `docs/vendor/calle.openapi.yaml` is a dated snapshot, not a source of truth.
 
+## Keeping the review gate cheap
+
+The gate runs on every ticket, so its cost compounds. Three rules:
+
+1. **The reviewer runs on Sonnet by default** (`model: sonnet` in its frontmatter). Escalate a single run to Opus with the `model` parameter on the Agent call for the safety-critical tickets only: CS-032, CS-034, CS-036, CS-045, CS-061, and any phase-boundary or documentation gate. The coder stays on Opus — implementation quality is where the depth is worth paying for.
+2. **Review the diff, not the repository.** The reviewer starts from `git diff`, the ticket, and only the doc sections that ticket names. Full-tree reads belong to phase boundaries.
+3. **Scope the test command to the ticket.** Run the affected package's tests during the loop; run the full suite at a phase boundary, before a commit that touches the orchestrator, call layer or persistence schema, and before any submission.
+
+Model-call cost inside the *product's own* test suite is a separate budget: see the cassette rule below.
+
+## Recorded model responses in tests
+
+Tests must not burn Gemini tokens on every run. `FakeLLMProvider` covers almost everything. The exception is CS-061, which must see a real model or its assertions prove nothing — so those runs use **recorded cassettes**: the real responses are captured once, committed under `tests/cassettes/`, and replayed thereafter. Re-record deliberately (an explicit flag), never automatically, and never in CI by default. Cassettes contain no secrets and no real phone numbers.
+
+Live CALL-E calls are scarcer still — 20 free calls on a new account. They are spent on CS-062 and the demo, never on the test loop.
+
 ## Where things live
 
 ```text

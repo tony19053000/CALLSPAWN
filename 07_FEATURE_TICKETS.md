@@ -363,6 +363,8 @@ No scenario fixture may supply an `AgentSpec` list — fixtures provide research
 **Modules** `tests/`. **Depends on** CS-060.
 Assert semantically that the anniversary mission creates event-relevant specialists, the PC mission creates compatibility and vendor-risk specialists, the professional-services mission creates neither GPU nor venue agents, the simple mission stays small, and changing constraints changes the swarm. Validate by capability semantics, not by exact generated names.
 
+**Cost control.** These are the only tests permitted to touch a real model, and they run from **recorded cassettes** under `tests/cassettes/` by default: capture once with an explicit `--record` flag, replay thereafter, never re-record automatically or in CI. Recording uses the cheapest model that still exercises real generation (a Flash-class `GEMINI_MODEL`). A cassette contains no secrets and no real phone numbers.
+
 These tests **do not run against `FakeLLMProvider`**. A scripted fake would satisfy every differentiation assertion while the factory stayed hardcoded, which is the largest available hole in the gate. They run against a real `GeminiProvider` or against recorded real-model cassettes, and they include a **sixth mission that has no fixture directory in `scenarios/`**, whose swarm must still be valid, distinct and capability-appropriate.
 
 The static domain-noun check scans `orchestrator/`, `agents/`, `strategies/`, `research/`, `calls/`, `evidence/` and `optimizer/` — **including every string literal and every prompt template file**, since a hardcoded list hides just as well in a prompt as in a list. It also asserts no scenario fixture supplies an `AgentSpec` list.

@@ -104,4 +104,6 @@ Default-off call posture and secret handling are specified in `05_SECURITY_SAFET
 
 **Remote.** `origin` = `https://github.com/tony19053000/CALLSPAWN.git`, supplied by the user after the foundation commit. Branch `main`.
 
+**Review-gate economics (user directive, 2026-09-11).** The review loop was consuming too many tokens. Three changes, none of which weaken the gate: the `reviewer-tester` agent is pinned to Sonnet (`model: sonnet`) and escalates to Opus only for CS-032, CS-034, CS-036, CS-045, CS-061 and phase-boundary or documentation gates; the reviewer now works from `git diff` plus the ticket rather than re-reading the tree; and the product's own tests use recorded cassettes under `tests/cassettes/` for the one suite (CS-061) that needs a real model. The coder stays on Opus — implementation depth is worth paying for; re-verification breadth is not.
+
 **Next.** CS-001 — backend skeleton and configuration.
