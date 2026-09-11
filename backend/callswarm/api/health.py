@@ -14,9 +14,12 @@ router = APIRouter()
 @router.get("/health", response_model=CapabilityReport)
 async def health(request: Request) -> CapabilityReport:
     verification: ModelVerification = request.app.state.llm_verification
+    research = getattr(request.app.state, "research", None)
     return build_capability_report(
         request.app.state.settings,
         version=__version__,
         llm_model_status=verification.status,
         llm_model_detail=verification.detail,
+        research_provider_effective=None if research is None else research.provider.name,
+        research_fallback_reason=None if research is None else research.fallback_reason,
     )

@@ -24,6 +24,8 @@ class CapabilityReport(BaseModel):
     live_calls_enabled: bool
     calle_configured: bool
     research_provider: str
+    research_provider_effective: str
+    research_fallback_reason: str | None = None
     database_kind: str
     call_max_per_mission: int
     allowed_recipient_count: int = Field(
@@ -37,6 +39,8 @@ def build_capability_report(
     version: str,
     llm_model_status: LLMModelStatus,
     llm_model_detail: str | None = None,
+    research_provider_effective: str | None = None,
+    research_fallback_reason: str | None = None,
 ) -> CapabilityReport:
     return CapabilityReport(
         version=version,
@@ -48,6 +52,8 @@ def build_capability_report(
         live_calls_enabled=settings.calle_live_calls_enabled,
         calle_configured=settings.calle_configured,
         research_provider=settings.research_provider,
+        research_provider_effective=research_provider_effective or settings.research_provider,
+        research_fallback_reason=research_fallback_reason,
         database_kind=settings.database_kind,
         call_max_per_mission=settings.call_max_per_mission,
         allowed_recipient_count=len(settings.call_allowed_recipients),

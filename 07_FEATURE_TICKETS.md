@@ -137,7 +137,7 @@ Framework components (Orchestrator, Strategy Architect, Call Strategy, Evidence 
 **Tests** Provenance required; fixture labelling surfaces through the API; injection text in a page does not alter behavior.
 **Safety** Untrusted-input boundary.
 **Demo** The research beat.
-**Status** PENDING
+**Status** DONE
 
 ### CS-021 — Candidate normalization and constraint filtering
 **Purpose** Raw results into comparable entities.
@@ -148,7 +148,7 @@ Framework components (Orchestrator, Strategy Architect, Call Strategy, Evidence 
 **Tests** Domain-agnostic run over two unrelated fixture sets; filter-reason completeness.
 **Safety** —
 **Demo** "100 found → 30 relevant → 12 qualifying".
-**Status** PENDING
+**Status** DONE
 
 ### CS-022 — Information-gap engine
 **Purpose** Separate what is known from what must be asked.
@@ -159,7 +159,7 @@ Framework components (Orchestrator, Strategy Architect, Call Strategy, Evidence 
 **Tests** Classification over fixtures; conflict detection; no-gap case.
 **Safety** —
 **Demo** The known/unknown table.
-**Status** PENDING
+**Status** DONE
 
 ---
 

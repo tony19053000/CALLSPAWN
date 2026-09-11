@@ -114,7 +114,9 @@ async def _populate(database: Database, mission_id: str) -> dict[str, str]:
                     mission_id=mission_id,
                     source="fixture://x",
                     source_type=SourceType.FIXTURE,
-                    provenance=Provenance(provider="fixture", retrieved_at=NOW),
+                    provenance=Provenance(
+                        source_type=SourceType.FIXTURE, provider_name="fixture", retrieved_at=NOW
+                    ),
                 )
             )
         ).id

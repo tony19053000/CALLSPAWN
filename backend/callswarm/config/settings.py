@@ -17,7 +17,8 @@ from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 CallProviderName = Literal["fake", "calle"]
-ResearchProviderName = Literal["fixture", "live"]
+# "live" is an alias for the one live implementation, "gemini_grounded".
+ResearchProviderName = Literal["fixture", "gemini_grounded", "live"]
 
 DEFAULT_REASONING_LEAK_MARKERS: tuple[str, ...] = (
     "<thinking>",
@@ -87,6 +88,13 @@ class Settings(BaseSettings):
     research_provider: ResearchProviderName = "fixture"
     search_api_key: SecretStr | None = None
     search_api_endpoint: str | None = None
+    # Directory scanned (recursively) for ``research.json`` fixtures.
+    research_fixture_dir: str = "../scenarios"
+    # Public-page fetch limits: timeout, size cap, and the User-Agent token that
+    # robots.txt rules are matched against.
+    research_fetch_timeout_seconds: float = Field(default=5.0, gt=0.0, le=30.0)
+    research_fetch_max_bytes: int = Field(default=512_000, ge=1_000)
+    research_user_agent: str = "CallSwarm/0.1 (+research; respects robots.txt)"
 
     # --- Orchestration -------------------------------------------------------
     # Clarification questions at or above this importance are asked; the rest

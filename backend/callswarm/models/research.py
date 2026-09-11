@@ -5,23 +5,73 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from callswarm.models.base import DomainModel, IdentifiedModel, JsonValue, utcnow
 from callswarm.models.enums import GapStatus, Importance, SourceType
 
 
 class Provenance(DomainModel):
-    provider: str = Field(min_length=1)
+    """Where a piece of research came from. ``source_type`` is mandatory and is
+    what carries FIXTURE/WEB truth all the way to the UI badge."""
+
+    source_type: SourceType
+    provider_name: str = Field(min_length=1)
+    source_url: str | None = None
     reference: str = ""
     query: str | None = None
     retrieved_at: datetime = Field(default_factory=utcnow)
+
+
+class ResearchQuery(DomainModel):
+    """A search request handed to a ``ResearchProvider``."""
+
+    text: str = Field(min_length=1)
+    kind_hint: str | None = None
+    max_results: int = Field(default=10, ge=1, le=50)
+
+
+def _require_provenance(value: object) -> object:
+    if value is None:
+        raise ValueError("provenance is required on every research result")
+    return value
+
+
+class RawResult(DomainModel):
+    """One search hit exactly as the provider returned it. Untrusted data."""
+
+    title: str = ""
+    url: str | None = None
+    snippet: str = ""
+    data: dict[str, Any] = Field(default_factory=dict)
+    provenance: Provenance
+
+    @field_validator("provenance", mode="before")
+    @classmethod
+    def _provenance_present(cls, value: object) -> object:
+        return _require_provenance(value)
+
+
+class RawPage(DomainModel):
+    """Text-only extraction of one public page. Untrusted data."""
+
+    url: str = Field(min_length=1)
+    title: str = ""
+    text: str = ""
+    truncated: bool = False
+    provenance: Provenance
+
+    @field_validator("provenance", mode="before")
+    @classmethod
+    def _provenance_present(cls, value: object) -> object:
+        return _require_provenance(value)
 
 
 class ExtractedClaim(DomainModel):
     subject: str = Field(min_length=1)
     predicate: str = Field(min_length=1)
     value: JsonValue = None
+    quote: str = ""
 
 
 class ResearchArtifact(IdentifiedModel):
@@ -55,6 +105,10 @@ class CandidateEntity(IdentifiedModel):
     source_refs: list[str] = Field(default_factory=list)
     source_types: list[SourceType] = Field(default_factory=list)
     passed_hard_constraints: bool | None = None
+    # Hard-constraint keys that could not be evaluated because the attribute is
+    # absent or not comparable. Such a candidate stays shortlisted; the gap
+    # engine turns each key into an InformationGap.
+    unverified_constraint_keys: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
 
 

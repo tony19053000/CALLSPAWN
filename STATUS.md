@@ -1,18 +1,18 @@
 # STATUS — CallSwarm
 
-_Last updated: 2026-09-11 (Phase 2 complete)_
+_Last updated: 2026-09-11 (Phase 3 complete)_
 
 ## Overall completion
 
-**32%** — Phases 0–2 complete (10 of 36 active tickets, all reviewer-PASSed). Backend foundation plus the dynamic-swarm core: deterministic mission state machine, intake with clarification, strategy architect, code-validated agent factory, DAG runner.
+**40%** — Phases 0–3 complete (13 of 36 active tickets, all reviewer-PASSed). Foundation, dynamic-swarm core, and the research layer: pluggable providers with mandatory provenance, SSRF-hardened page fetcher, domain-agnostic normalization and constraint filtering, KNOWN/UNKNOWN/CONFLICTED gap engine.
 
 ## Current phase
 
-Phase 2 complete → Phase 3 (Research and information gaps).
+Phase 3 complete → Phase 4 (Calls).
 
 ## Current ticket
 
-`CS-020 — Research provider abstraction` (PENDING).
+`CS-030 — Call value scoring and selection` (PENDING).
 
 ## Completed
 
@@ -26,13 +26,15 @@ Phase 2 complete → Phase 3 (Research and information gaps).
 
 - **Phase 2 (CS-010…CS-014) — reviewer PASS 2026-09-11** after one FAIL (intake merge path did not fail closed; fixed). `orchestrator/state_machine.py` explicit transition table validated against persisted status, `mission_transitions` audit table; `orchestrator/intake.py` + `api/missions.py` create/answer/get with importance-threshold clarification, assumptions, narrowing-only authority clamp, fail-closed to BLOCKED; `strategies/` architect with distinct-axis + Jaccard diversity, prune/revive with persisted reasons; `agents/factory.py` code-side tool allow-list, reserved names, prohibited purposes, overlap merge, DAG/cycle checks, complexity-scored cap with one reduce request then leaf truncation; `agents/runner.py` + `orchestrator/graph.py` bounded-concurrency DAG runner with full lifecycle, one retry, BLOCKED dependents, no spawning, stub tools. Static domain-noun gate verified by the reviewer to fail when a noun is injected. 182 tests.
 
+- **Phase 3 (CS-020…CS-022) — reviewer PASS 2026-09-11** after two FAILs (SSRF: no private-address refusal; then DNS-rebinding TOCTOU between check and connect). `research/provider.py` protocol with provenance required at the model level; `research/fixture.py` (`source_type=FIXTURE` as a fixed class attribute, no override); `research/live.py` `GeminiGroundedResearchProvider` against verified `google-genai` 2.23.0 types with honest snippet labelling; `research/fetch.py` `PublicPageFetcher` with scheme/userinfo refusal, robots.txt, timeout, size cap, content-type restriction, per-hop redirect checks, and a once-per-hop resolve-validate-pin guard (URL host rewritten to the validated IP, `Host` preserved, `sni_hostname` extension for TLS); `research/service.py` provider selection with loud fixture fallback surfaced in `/health` and as a blocker event; `research/pipeline.py` normalize/dedup/hard-constraint filter; `research/gaps.py` gap engine and knowledge table. Research stubs in `agents/tools.py` replaced with real, fenced tool calls. 246 tests.
+
 ## In progress
 
 Nothing.
 
 ## Pending
 
-26 active tickets: CS-020 … CS-064 (excluding CS-046, deferred).
+23 active tickets: CS-030 … CS-064 (excluding CS-046, deferred).
 
 ## Blockers
 
@@ -56,16 +58,16 @@ Nothing.
 
 ## Research state
 
-`RESEARCH_PROVIDER=fixture`. Live provider selection is deferred to ticket CS-020, where the current official search-grounding options are verified before implementation.
+`RESEARCH_PROVIDER=fixture|gemini_grounded` (`live` alias). Live provider is `GeminiGroundedResearchProvider` using the SDK's Google Search tool; grounding chunks expose URI + title only, so snippets are model answer text attributed via `grounding_supports` and labelled as such. Not yet exercised against the network (no credentials). `/health` reports `research_provider_effective` and `research_fallback_reason`.
 
 ## Tests
 
 | Suite | State |
 | --- | --- |
-| Unit + integration (backend) | 182 passed — `backend/.venv/bin/python -m pytest` |
+| Unit + integration (backend) | 246 passed — `backend/.venv/bin/python -m pytest` |
 | End-to-end | not created (CS-060) |
 | Lint (ruff) | All checks passed |
-| Typecheck (mypy, strict) | Success: no issues found in 59 source files |
+| Typecheck (mypy, strict) | Success: no issues found in 69 source files |
 | Build (frontend) | not created (CS-050) |
 
 Test suite blocks all socket connects via `tests/conftest.py`; runs with `CALL_PROVIDER=fake`, `CALLE_LIVE_CALLS_ENABLED=false`.
@@ -135,4 +137,16 @@ Default-off call posture and secret handling are specified in `05_SECURITY_SAFET
 
 **Not yet wired.** No mission-level driver ties intake → strategies → factory → runner in one call; that is the Orchestrator loop, built as later phases supply research, calls and evidence.
 
-**Next.** CS-020 research provider, CS-021 pipeline, CS-022 information gaps.
+### 2026-09-11 — Phase 3: research and information gaps (CS-020…CS-022)
+
+**Built.** Research providers, the page fetcher, normalization, constraint filtering, and the gap engine. Only `scenarios/simple/research.json` exists as a fixture (domain-neutral); the four domain scenarios belong to CS-060.
+
+**Decisions.** Fixture provenance is a fixed class attribute with no override parameter, so a fixture claim cannot be stamped `WEB` by any code path; dedup unions `source_types` per entity and never mutates a claim's `source_type`. Phone rule: only exact E.164 goes to `contact.phone_e164`; everything else lands verbatim in `attributes.raw_phone` — never reformatted, per the CALL-E server's own instruction. Absent attributes never exclude a candidate; they become `unverified_constraint_keys` and gaps. The knowledge table is computed from claims, not merged attributes, so dedup's first-value-wins attribute merge cannot hide a conflict. `identify_gaps` takes claims explicitly. Grounding is not combinable with JSON-schema output in the documented path, so the search call is plain text with extraction in code. Official docs now mark `generate_content` "Legacy" in favour of the Interactions API; stayed on `generate_content` for consistency with `GeminiProvider`, extraction isolated in one function for later migration.
+
+**Review.** Sonnet, diff-scoped. FAIL 1: fetcher had no private-address refusal — a prompt-injected page could direct an agent to fetch `http://169.254.169.254/latest/meta-data/`. FAIL 2 after the first fix: the guard validated DNS answers but httpx re-resolved at connect time, leaving a rebinding window. Final design resolves once per hop, pins the validated IP into the URL, preserves `Host` and SNI (`httpcore` `_async/connection.py:107,151` confirmed), and the reviewer verified decimal/octal/hex/short IPv4 forms and trailing-dot names cannot bypass it. Retest PASS.
+
+**Must not be changed accidentally.** `PublicPageFetcher.pin()` and the rule that every request in a hop uses the pinned target; `FixtureResearchProvider.source_type` as a class constant; the injection test proving an agent that read a hostile page still cannot create a `CallIntent`.
+
+**Known limits, stated.** SSRF guard does not cover a compromised public host or an externally configured proxy. Live grounding untested against the network.
+
+**Next.** Phase 4 — CS-031 fake provider, CS-033 schema generator, CS-030 scoring, CS-034 approval gates, CS-032 CALL-E provider, CS-035 patterns, CS-036 webhook.

@@ -52,6 +52,7 @@ ignore = ["RUF012"]
 "callswarm/orchestrator/state_machine.py" = ["N818"]
 "callswarm/agents/runner.py" = ["N818"]
 "callswarm/strategies/architect.py" = ["N818"]
+"callswarm/research/provider.py" = ["N818"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -95,7 +95,9 @@ def _sample_instances(mission_id: str = "m1") -> list[BaseModel]:
             mission_id=mission_id,
             source="src",
             source_type=SourceType.FIXTURE,
-            provenance=Provenance(provider="fixture", retrieved_at=now),
+            provenance=Provenance(
+                source_type=SourceType.FIXTURE, provider_name="fixture", retrieved_at=now
+            ),
         ),
         CandidateEntity(
             mission_id=mission_id,

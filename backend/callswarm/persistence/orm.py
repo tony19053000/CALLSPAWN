@@ -186,6 +186,7 @@ class CandidateEntityRow(Base):
     source_refs: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     source_types: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     passed_hard_constraints: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    unverified_constraint_keys: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
 
 

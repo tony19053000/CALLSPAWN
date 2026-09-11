@@ -23,6 +23,7 @@ from callswarm.llm import LLMProvider
 from callswarm.llm.gemini import GeminiProvider, ModelVerification
 from callswarm.orchestrator.state_machine import MissionStateMachine
 from callswarm.persistence import Database
+from callswarm.research.service import ResearchService, select_research_provider
 from callswarm.sanitize import Sanitizer
 
 logger = logging.getLogger(__name__)
@@ -61,12 +62,22 @@ def create_app(
                 )
         else:
             logger.warning("LLM not configured; reasoning provider unavailable")
+        selection = select_research_provider(resolved)
+        app.state.research_provider = selection.provider
+        app.state.research = ResearchService(
+            selection.provider,
+            app.state.llm_provider,
+            database,
+            app.state.emitter,
+            fallback_reason=selection.fallback_reason,
+        )
         logger.info(
-            "CallSwarm %s: call_provider=%s live_calls=%s research=%s db=%s",
+            "CallSwarm %s: call_provider=%s live_calls=%s research=%s (effective %s) db=%s",
             __version__,
             resolved.call_provider,
             resolved.calle_live_calls_enabled,
             resolved.research_provider,
+            selection.provider.name,
             database.kind,
         )
         try:

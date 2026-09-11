@@ -92,6 +92,14 @@ class GapStatus(StrEnum):
     UNRESOLVABLE = "UNRESOLVABLE"
 
 
+class AttributeKnowledge(StrEnum):
+    """What the evidence says about one decision attribute of one candidate."""
+
+    KNOWN = "KNOWN"
+    UNKNOWN = "UNKNOWN"
+    CONFLICTED = "CONFLICTED"
+
+
 class SourceType(StrEnum):
     """Provenance of a claim. FIXTURE and SIMULATED propagate to the UI badge."""
 

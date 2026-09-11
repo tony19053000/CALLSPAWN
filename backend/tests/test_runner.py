@@ -17,7 +17,7 @@ from callswarm.agents.runner import (
     ToolNotPermitted,
     build_role_instruction,
 )
-from callswarm.agents.tools import NOT_AVAILABLE, default_tools
+from callswarm.agents.tools import default_tools
 from callswarm.config.settings import Settings
 from callswarm.events import ActivityEventEmitter
 from callswarm.llm import FakeLLMProvider
@@ -325,7 +325,8 @@ async def test_unknown_or_bad_arguments_do_not_crash_the_agent(
     result = await make_runner(database, emitter, llm, settings).run_swarm(mission, [a])
     assert result.runs[a.id].status is AgentState.COMPLETE
     second = llm.calls[1][1]["tool results"]
-    assert NOT_AVAILABLE in second and "INVALID_ARGUMENTS" in second
+    # No research service is wired into this runner, so the research tool is absent.
+    assert "TOOL_UNAVAILABLE" in second and "INVALID_ARGUMENTS" in second
 
 
 # --- tools with side effects ---------------------------------------------------------

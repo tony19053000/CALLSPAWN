@@ -138,6 +138,8 @@ async def test_health_reports_capabilities_without_secrets(tmp_path: Path) -> No
         "live_calls_enabled",
         "calle_configured",
         "research_provider",
+        "research_provider_effective",
+        "research_fallback_reason",
         "database_kind",
         "call_max_per_mission",
         "allowed_recipient_count",
