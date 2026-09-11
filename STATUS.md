@@ -1,18 +1,18 @@
 # STATUS — CallSwarm
 
-_Last updated: 2026-09-11_
+_Last updated: 2026-09-11 (Phase 1 complete)_
 
 ## Overall completion
 
-**5%** — Phase 0 (documentation foundation) complete. No application code written yet.
+**18%** — Phase 0 and Phase 1 complete (5 of 36 active tickets, all reviewer-PASSed). Backend foundation exists: config, domain models, persistence, LLM provider, event bus with sanitizer.
 
 ## Current phase
 
-Phase 0 → Phase 1 (Foundation, ticket CS-001).
+Phase 1 complete → Phase 2 (Mission intake and swarm design).
 
 ## Current ticket
 
-`CS-001 — Backend skeleton and configuration` (PENDING).
+`CS-010 — Mission intake and clarification loop` (PENDING). Note CS-010 depends on CS-011 (state machine); implement CS-011 first or together.
 
 ## Completed
 
@@ -22,13 +22,15 @@ Phase 0 → Phase 1 (Foundation, ticket CS-001).
 - `CLAUDE.md`, `STATUS.md`, `README.md`, `.env.example`, `.gitignore`.
 - CALL-E integration surface verified against live official sources; OpenAPI contract vendored at `docs/vendor/calle.openapi.yaml`.
 
+- **Phase 1 (CS-001…CS-005) — reviewer PASS 2026-09-11.** `backend/` package: `config/` typed settings + `/health` capability report; `models/` full domain layer with exact CALL-E enums; `persistence/` 17 async SQLAlchemy tables, repositories, explicit cascade excluding `suppression_entries`; `llm/` `LLMProvider`, `GeminiProvider`, `FakeLLMProvider`, `untrusted_block`; `events/` persisted emitter + SSE with `Last-Event-ID` replay; `sanitize.py` applied at emitter, JSON response hook and artifact persistence. 89 tests, ruff clean, mypy strict clean.
+
 ## In progress
 
 Nothing.
 
 ## Pending
 
-All 36 active tickets in `07_FEATURE_TICKETS.md` (CS-001 … CS-064). CS-046 is a 37th, explicitly deferred out of V1.
+31 active tickets: CS-010 … CS-064 (excluding CS-046, deferred).
 
 ## Blockers
 
@@ -58,12 +60,13 @@ All 36 active tickets in `07_FEATURE_TICKETS.md` (CS-001 … CS-064). CS-046 is 
 
 | Suite | State |
 | --- | --- |
-| Unit | not created |
-| Integration | not created |
-| End-to-end | not created |
-| Lint (ruff) | not configured |
-| Typecheck (mypy) | not configured |
-| Build | not configured |
+| Unit + integration (backend) | 89 passed — `backend/.venv/bin/python -m pytest` |
+| End-to-end | not created (CS-060) |
+| Lint (ruff) | All checks passed |
+| Typecheck (mypy, strict) | Success: no issues found in 41 source files |
+| Build (frontend) | not created (CS-050) |
+
+Test suite blocks all socket connects via `tests/conftest.py`; runs with `CALL_PROVIDER=fake`, `CALLE_LIVE_CALLS_ENABLED=false`.
 
 ## Security state
 
@@ -106,4 +109,16 @@ Default-off call posture and secret handling are specified in `05_SECURITY_SAFET
 
 **Review-gate economics (user directive, 2026-09-11).** The review loop was consuming too many tokens. Three changes, none of which weaken the gate: the `reviewer-tester` agent is pinned to Sonnet (`model: sonnet`) and escalates to Opus only for CS-032, CS-034, CS-036, CS-045, CS-061 and phase-boundary or documentation gates; the reviewer now works from `git diff` plus the ticket rather than re-reading the tree; and the product's own tests use recorded cassettes under `tests/cassettes/` for the one suite (CS-061) that needs a real model. The coder stays on Opus — implementation depth is worth paying for; re-verification breadth is not.
 
-**Next.** CS-001 — backend skeleton and configuration.
+### 2026-09-11 — Phase 1: backend foundation (CS-001…CS-005)
+
+**Built.** `backend/` Python 3.12 package, venv at `backend/.venv` (created with `uv` because Ubuntu's python lacks `ensurepip`). Pinned: fastapi 0.141.1, pydantic 2.13.5, sqlalchemy 2.0.52, google-genai 2.23.0, sse-starlette 3.4.11. Config, domain models, persistence, LLM provider, event bus, sanitizer, 89 tests.
+
+**Decisions.** An unavailable Gemini model logs a STARTUP ERROR, reports `llm_model_status: "unavailable"` in `/health`, and makes generation raise `LLMModelUnavailable` — the process stays up so judges can see the error, rather than crashing. Reviewer judged this acceptable. All `inputs` to `generate_structured` are untrusted and wrapped; only `instruction` is trusted. Cascade delete is explicit code (`MISSION_SCOPED_TABLES`) so the `SuppressionEntry` exclusion is visible and tested, with `ondelete=CASCADE` FKs as backup. `AuthorityPolicy.calls_allowed` defaults `False`, `max_call_count` defaults `0` — missions opt in. Phone masking keeps country code + last 3 digits; requires leading `+`, so years and prices are untouched. `REASONING_LEAK_MARKERS` added as a setting; empty value falls back to defaults so a copied `.env` cannot disable the guard. `ScheduledJob` table created now so CS-045 has a home and the cascade covers it.
+
+**Review.** First gate run on Sonnet per the cost policy. PASS, no findings. Reviewer independently ran `/health` with real-looking secrets and a distinctive DB filename and confirmed nothing leaked.
+
+**Must not be changed accidentally.** `MISSION_SCOPED_TABLES` exclusion of `suppression_entries`; the three sanitizer choke points; `FakeLLMProvider` queue-only design (no branching on inputs); subscribe-before-replay ordering in `api/events.py`.
+
+**Still unverified.** `gemini-3.5-flash` default against a live listing — no credentials yet.
+
+**Next.** CS-011 (state machine) then CS-010 (intake), CS-012, CS-013, CS-014.

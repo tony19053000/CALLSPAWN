@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "callswarm"
+version = "0.1.0"
+description = "CallSwarm backend: dynamic agent swarm that researches, calls and plans under explicit authorization gates."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.4",
+    "pydantic==2.13.5",
+    "pydantic-settings==2.15.0",
+    "sqlalchemy[asyncio]==2.0.52",
+    "aiosqlite==0.22.1",
+    "httpx==0.28.1",
+    "google-genai==2.23.0",
+    "sse-starlette==3.4.11",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.16.7",
+    "mypy==2.3.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["callswarm*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "W", "SIM", "ASYNC", "RUF"]
+ignore = ["RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+# Exception names are fixed by the ticket text (AgentOutputInvalid et al.).
+"callswarm/llm/provider.py" = ["N818"]
+"callswarm/llm/fake.py" = ["N818"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["callswarm", "tests"]
+exclude = ["\\.venv"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["google.*", "sse_starlette.*", "aiosqlite.*"]
+ignore_missing_imports = true

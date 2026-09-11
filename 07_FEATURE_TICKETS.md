@@ -17,7 +17,7 @@ Status values: `PENDING`, `IN_PROGRESS`, `REVIEW`, `DONE`, `BLOCKED`.
 **Tests** Settings defaults; health payload contains no secrets.
 **Safety** Establishes the default-off call posture.
 **Demo** Startup check for judges.
-**Status** PENDING
+**Status** DONE
 
 ### CS-002 — Domain models
 **Purpose** The shared contract layer every other module depends on.
@@ -28,7 +28,7 @@ Status values: `PENDING`, `IN_PROGRESS`, `REVIEW`, `DONE`, `BLOCKED`.
 **Tests** Round-trip and validation tests; a test asserting no venue/GPU/legal-specific fields exist; a test asserting no `AuthorityPolicy` field can express "consequential action without approval".
 **Safety** Authorization states are explicit enums including `EXPIRED`; simulated provenance is representable.
 **Demo** Indirect.
-**Status** PENDING
+**Status** DONE
 
 ### CS-003 — Persistence layer
 **Purpose** Durable mission state.
@@ -39,7 +39,7 @@ Status values: `PENDING`, `IN_PROGRESS`, `REVIEW`, `DONE`, `BLOCKED`.
 **Tests** Repository CRUD against a temp SQLite file; cascade-delete test; suppression-survives-delete test.
 **Safety** Deletion path for PII.
 **Demo** Mission survives a restart.
-**Status** PENDING
+**Status** DONE
 
 ### CS-004 — LLM provider and structured-output contract
 **Purpose** One validated path to the model.
@@ -51,7 +51,7 @@ At startup the provider verifies the configured model exists via `client.models.
 **Tests** Schema-violation retry path; untrusted-block wrapping; fake provider usable with no network; a test asserting `FakeLLMProvider` has no scenario-conditional branching.
 **Safety** Prompt-injection containment lives here.
 **Demo** Indirect.
-**Status** PENDING
+**Status** DONE
 
 ### CS-005 — Activity event bus and SSE stream
 **Purpose** Real, persisted, user-visible activity.
@@ -62,7 +62,7 @@ At startup the provider verifies the configured model exists via `client.models.
 **Tests** Replay after disconnect; masking guard on both SSE and REST; ordering; an artifact containing reasoning-like text is sanitized before persistence.
 **Safety** Enforces the no-chain-of-thought and masking rules at the choke point.
 **Demo** The live swarm panel depends on this.
-**Status** PENDING
+**Status** DONE
 
 ---
 

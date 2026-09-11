@@ -1,0 +1,165 @@
+"""Typed application settings.
+
+Every variable in ``.env.example`` is loaded here with a safe default. The
+defaults encode the default-off call posture: no live calls, the fake call
+provider, the fixture research provider and an empty recipient allow-list.
+
+Secrets are ``SecretStr`` so they can never be serialized by accident; nothing
+in this module exposes their values.
+"""
+
+from __future__ import annotations
+
+from functools import lru_cache
+from typing import Annotated, Literal
+
+from pydantic import Field, SecretStr, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+CallProviderName = Literal["fake", "calle"]
+ResearchProviderName = Literal["fixture", "live"]
+
+DEFAULT_REASONING_LEAK_MARKERS: tuple[str, ...] = (
+    "<thinking>",
+    "</thinking>",
+    "<think>",
+    "</think>",
+    "<scratchpad>",
+    "chain of thought",
+    "chain-of-thought",
+    "let me think",
+)
+
+
+def _split_csv(value: object) -> object:
+    """Parse a comma-separated environment value into a list of stripped items."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    return value
+
+
+class Settings(BaseSettings):
+    """Application configuration loaded from the environment."""
+
+    model_config = SettingsConfigDict(
+        env_file=(".env", "../.env"),
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # --- Reasoning provider (Gemini) ---------------------------------------
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-3.5-flash"
+    google_genai_use_vertexai: bool = False
+    google_cloud_project: str | None = None
+    google_cloud_location: str | None = None
+
+    # --- CALL-E --------------------------------------------------------------
+    calle_api_key: SecretStr | None = None
+    calle_api_base_url: str = "https://api.heycall-e.com"
+    calle_webhook_url: str | None = None
+    calle_webhook_secret: SecretStr | None = None
+    calle_live_calls_enabled: bool = False
+    call_provider: CallProviderName = "fake"
+    call_max_per_mission: int = Field(default=5, ge=0)
+    call_quiet_hours_start: str = "21:00"
+    call_quiet_hours_end: str = "09:00"
+    call_allowed_recipients: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    # --- Research provider ---------------------------------------------------
+    research_provider: ResearchProviderName = "fixture"
+    search_api_key: SecretStr | None = None
+    search_api_endpoint: str | None = None
+
+    # --- Persistence ---------------------------------------------------------
+    database_url: SecretStr = SecretStr("sqlite+aiosqlite:///./callswarm.db")
+
+    # --- Server --------------------------------------------------------------
+    backend_host: str = "127.0.0.1"
+    backend_port: int = Field(default=8000, ge=1, le=65535)
+    cors_allowed_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"]
+    )
+
+    # --- Output sanitization -------------------------------------------------
+    # Phrases whose presence in any outbound text marks a chain-of-thought leak.
+    reasoning_leak_markers: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: list(DEFAULT_REASONING_LEAK_MARKERS)
+    )
+
+    @field_validator("call_allowed_recipients", "cors_allowed_origins", mode="before")
+    @classmethod
+    def _parse_csv_lists(cls, value: object) -> object:
+        return _split_csv(value)
+
+    @field_validator("reasoning_leak_markers", mode="before")
+    @classmethod
+    def _parse_markers(cls, value: object) -> object:
+        # An empty value must never disable the guard: fall back to the defaults.
+        parsed = _split_csv(value)
+        if isinstance(parsed, list) and not parsed:
+            return list(DEFAULT_REASONING_LEAK_MARKERS)
+        return parsed
+
+    @field_validator(
+        "gemini_api_key", "calle_api_key", "calle_webhook_secret", "search_api_key", mode="before"
+    )
+    @classmethod
+    def _empty_secret_is_none(cls, value: object) -> object:
+        if isinstance(value, str) and value.strip() == "":
+            return None
+        return value
+
+    @field_validator(
+        "calle_webhook_url",
+        "google_cloud_project",
+        "google_cloud_location",
+        "search_api_endpoint",
+        mode="before",
+    )
+    @classmethod
+    def _empty_string_is_none(cls, value: object) -> object:
+        if isinstance(value, str) and value.strip() == "":
+            return None
+        return value
+
+    # --- Derived, secret-free views -----------------------------------------
+    @property
+    def llm_configured(self) -> bool:
+        """True when a Gemini auth path is present. Never reveals the key."""
+        if self.gemini_api_key is not None and self.gemini_api_key.get_secret_value():
+            return True
+        return self.google_genai_use_vertexai and bool(self.google_cloud_project)
+
+    @property
+    def database_kind(self) -> str:
+        """The database dialect name only (e.g. ``sqlite``), never the URL."""
+        url = self.database_url.get_secret_value()
+        return url.split(":", 1)[0].split("+", 1)[0] if url else "unknown"
+
+    @property
+    def calle_configured(self) -> bool:
+        return self.calle_api_key is not None and bool(self.calle_api_key.get_secret_value())
+
+    def secret_values(self) -> list[str]:
+        """Every configured secret value. Used only by tests to assert non-exposure."""
+        values: list[str] = []
+        for secret in (
+            self.gemini_api_key,
+            self.calle_api_key,
+            self.calle_webhook_secret,
+            self.search_api_key,
+            self.database_url,
+        ):
+            if secret is not None and secret.get_secret_value():
+                values.append(secret.get_secret_value())
+        return values
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Process-wide settings, loaded once."""
+    return Settings()
