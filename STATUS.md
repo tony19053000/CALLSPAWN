@@ -16,7 +16,7 @@ Phase 0 → Phase 1 (Foundation, ticket CS-001).
 
 ## Completed
 
-- Repository initialized with `git init` (working tree only until the Phase 0 commit lands; no remote configured — see Blockers).
+- Repository initialized, committed and pushed to `origin/main` (`https://github.com/tony19053000/CALLSPAWN.git`).
 - Development subagents created: `.claude/agents/coder.md`, `.claude/agents/reviewer-tester.md`.
 - Anchor documents written: `01_PRD.md`, `02_ARCHITECTURE.md`, `03_SWARM_ORCHESTRATION.md`, `04_CALL_E_INTEGRATION.md`, `05_SECURITY_SAFETY.md`, `06_FRONTEND_SPEC.md`, `07_FEATURE_TICKETS.md`.
 - `CLAUDE.md`, `STATUS.md`, `README.md`, `.env.example`, `.gitignore`.
@@ -32,7 +32,7 @@ All 36 active tickets in `07_FEATURE_TICKETS.md` (CS-001 … CS-064). CS-046 is 
 
 ## Blockers
 
-1. **No git remote configured.** Nothing was invented or auto-created. Local development continues; a remote must be added before the hackathon PR and before any push.
+1. ~~No git remote configured.~~ **Resolved 2026-09-11** — remote `origin` set to `https://github.com/tony19053000/CALLSPAWN.git`, branch `main` pushed and tracking.
 2. **No credentials present.** `GEMINI_API_KEY` and `CALLE_API_KEY` are unset, so live LLM calls, live research and live calls cannot run yet. Fake providers cover all development and testing.
 
 ## CALL-E state
@@ -70,7 +70,7 @@ Default-off call posture and secret handling are specified in `05_SECURITY_SAFET
 
 ## Latest git commit
 
-Pending — the Phase 0 foundation commit.
+`6ceb28b docs: establish CallSwarm Phase 0 foundation` — pushed to `origin/main`.
 
 ## Context state log
 
@@ -100,5 +100,7 @@ Pending — the Phase 0 foundation commit.
 - *Missing entities.* `SuppressionEntry` was enforced by three tickets but modelled nowhere — and it must survive mission deletion, so it is explicitly excluded from the cascade. `AgentRequest`, `RecipientResult` and the `config/` package were likewise referenced but absent. `CallRun.provider_call_id` was renamed `calle_call_id`, because the spec's `provider_call_id` is attempt-level telephony data and would have been mis-mapped.
 - *The worked example broke its own rule.* A required `quoted_price_inr` described as omittable would have voided the entire extraction under `additionalProperties: false`. Optional numerics are now paired with a required status enum, and CS-033's validator enforces it.
 - *Smaller corrections.* Ticket dependency ordering (CS-010→CS-011, CS-032→CS-033, CS-060→CS-035/041/042/045); event pagination; `CALL_ALLOWED_RECIPIENTS` defined as a hard allow-list where empty means allow none; webhook env vars added; the approval endpoint given a typed decision body so a malformed POST cannot default to approval; `EXPIRED` added to the reviewer checklist; the base URL flagged as a placeholder in the vendored spec; the framework-versus-generated agent boundary stated explicitly so CS-013 and CS-061 are judgeable; commit authority assigned to the lead session.
+
+**Remote.** `origin` = `https://github.com/tony19053000/CALLSPAWN.git`, supplied by the user after the foundation commit. Branch `main`.
 
 **Next.** CS-001 — backend skeleton and configuration.
