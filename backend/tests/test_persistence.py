@@ -28,6 +28,7 @@ from callswarm.models import (
     InformationGap,
     Mission,
     MissionStatus,
+    MissionTransition,
     PlanOption,
     Provenance,
     RecipientResult,
@@ -55,6 +56,7 @@ from callswarm.persistence import (
     EvidenceClaimRepository,
     InformationGapRepository,
     MissionRepository,
+    MissionTransitionRepository,
     PlanOptionRepository,
     ResearchArtifactRepository,
     ScheduledJobRepository,
@@ -72,6 +74,16 @@ async def _populate(database: Database, mission_id: str) -> dict[str, str]:
     """Insert one row of every mission-scoped aggregate. Returns ids by table."""
     ids: dict[str, str] = {}
     async with database.session() as s:
+        ids["mission_transitions"] = (
+            await MissionTransitionRepository(s).add(
+                MissionTransition(
+                    mission_id=mission_id,
+                    from_status=MissionStatus.MISSION_CREATED,
+                    to_status=MissionStatus.GOAL_UNDERSTANDING,
+                    trigger="test",
+                )
+            )
+        ).id
         ids["strategy_candidates"] = (
             await StrategyCandidateRepository(s).add(
                 StrategyCandidate(mission_id=mission_id, title="t")
@@ -215,6 +227,7 @@ async def test_schema_covers_every_persisted_entity(database: Database) -> None:
         "activity_events",
         "suppression_entries",
         "scheduled_jobs",
+        "mission_transitions",
     }
 
 

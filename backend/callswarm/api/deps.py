@@ -6,6 +6,9 @@ from fastapi import Request
 
 from callswarm.config.settings import Settings
 from callswarm.events import ActivityEventEmitter
+from callswarm.llm import LLMProvider
+from callswarm.orchestrator.intake import MissionIntake
+from callswarm.orchestrator.state_machine import MissionStateMachine
 from callswarm.persistence import Database
 
 
@@ -22,3 +25,20 @@ def get_database_dep(request: Request) -> Database:
 def get_emitter_dep(request: Request) -> ActivityEventEmitter:
     emitter: ActivityEventEmitter = request.app.state.emitter
     return emitter
+
+
+def get_llm_provider_dep(request: Request) -> LLMProvider:
+    provider: LLMProvider = request.app.state.llm_provider
+    return provider
+
+
+def get_state_machine_dep(request: Request) -> MissionStateMachine:
+    machine: MissionStateMachine = request.app.state.state_machine
+    return machine
+
+
+def get_intake_dep(request: Request) -> MissionIntake:
+    state = request.app.state
+    return MissionIntake(
+        state.database, state.emitter, state.llm_provider, state.settings, state.state_machine
+    )

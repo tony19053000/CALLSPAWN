@@ -15,18 +15,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from callswarm import __version__
-from callswarm.api import events, health
+from callswarm.api import events, health, missions
 from callswarm.api.sanitizer_middleware import SanitizingJSONMiddleware
 from callswarm.config.settings import Settings, get_settings
 from callswarm.events import ActivityEventEmitter
+from callswarm.llm import LLMProvider
 from callswarm.llm.gemini import GeminiProvider, ModelVerification
+from callswarm.orchestrator.state_machine import MissionStateMachine
 from callswarm.persistence import Database
 from callswarm.sanitize import Sanitizer
 
 logger = logging.getLogger(__name__)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, *, llm_provider: LLMProvider | None = None
+) -> FastAPI:
+    """Build the app. ``llm_provider`` overrides Gemini (tests inject a fake)."""
     resolved = settings or get_settings()
     sanitizer = Sanitizer(resolved.reasoning_leak_markers)
 
@@ -38,12 +43,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.database = database
         app.state.sanitizer = sanitizer
         app.state.emitter = ActivityEventEmitter(database, sanitizer)
+        app.state.state_machine = MissionStateMachine(database, app.state.emitter)
         provider = GeminiProvider(resolved)
-        app.state.llm_provider = provider
+        app.state.llm_provider = llm_provider if llm_provider is not None else provider
         app.state.llm_verification = ModelVerification(
             status=provider.verification.status, model=provider.model
         )
-        if provider.configured:
+        if llm_provider is not None:
+            logger.warning("LLM provider overridden with %s", type(llm_provider).__name__)
+        elif provider.configured:
             app.state.llm_verification = await provider.verify_model()
             if app.state.llm_verification.status != "verified":
                 logger.error(
@@ -76,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_middleware(SanitizingJSONMiddleware, sanitizer=sanitizer)
     app.include_router(health.router)
+    app.include_router(missions.router)
     app.include_router(events.router)
     return app
 

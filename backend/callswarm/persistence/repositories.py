@@ -28,6 +28,7 @@ from callswarm.models import (
     EvidenceClaim,
     InformationGap,
     Mission,
+    MissionTransition,
     PlanOption,
     RecipientResult,
     ResearchArtifact,
@@ -51,6 +52,7 @@ from callswarm.persistence.orm import (
     EvidenceClaimRow,
     InformationGapRow,
     MissionRow,
+    MissionTransitionRow,
     PlanOptionRow,
     RecipientResultRow,
     ResearchArtifactRow,
@@ -165,6 +167,27 @@ class MissionRepository(Repository[Mission, MissionRow]):
         await self.session.delete(row)
         await self.session.flush()
         return True
+
+
+class MissionTransitionRepository(Repository[MissionTransition, MissionTransitionRow]):
+    """Append-only: transitions are history and are never edited."""
+
+    domain = MissionTransition
+    row = MissionTransitionRow
+
+    async def list_by_mission(self, mission_id: str) -> list[MissionTransition]:
+        result = await self.session.execute(
+            select(MissionTransitionRow)
+            .where(MissionTransitionRow.mission_id == mission_id)
+            .order_by(MissionTransitionRow.created_at, MissionTransitionRow.id)
+        )
+        return [self._from_row(row) for row in result.scalars()]
+
+    async def update(self, model: MissionTransition) -> MissionTransition:
+        raise NotImplementedError("mission transitions are append-only")
+
+    async def delete(self, id_: str) -> bool:
+        raise NotImplementedError("mission transitions are append-only")
 
 
 class StrategyCandidateRepository(Repository[StrategyCandidate, StrategyCandidateRow]):

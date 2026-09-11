@@ -31,6 +31,20 @@ DEFAULT_REASONING_LEAK_MARKERS: tuple[str, ...] = (
 )
 
 
+DEFAULT_PROHIBITED_AGENT_PURPOSES: tuple[str, ...] = (
+    "medical diagnosis",
+    "legal advice",
+    "financial trading",
+    "credential collection",
+    "password collection",
+    "otp collection",
+    "one-time password",
+    "impersonation",
+    "debt collection",
+    "political persuasion",
+)
+
+
 def _split_csv(value: object) -> object:
     """Parse a comma-separated environment value into a list of stripped items."""
     if value is None:
@@ -74,6 +88,24 @@ class Settings(BaseSettings):
     search_api_key: SecretStr | None = None
     search_api_endpoint: str | None = None
 
+    # --- Orchestration -------------------------------------------------------
+    # Clarification questions at or above this importance are asked; the rest
+    # become recorded assumptions.
+    clarification_importance_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    # Maximum number of generated agents executing at the same time.
+    agent_concurrency: int = Field(default=4, ge=1)
+    # Maximum model turns one agent run may take before it is failed.
+    agent_max_turns: int = Field(default=4, ge=1)
+    # Token-overlap ratio above which two strategies or two agent responsibilities
+    # count as duplicates.
+    strategy_overlap_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    agent_overlap_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    # Purposes no generated agent may own. Matched case-insensitively against the
+    # agent's objective, role and ownership statement.
+    prohibited_agent_purposes: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: list(DEFAULT_PROHIBITED_AGENT_PURPOSES)
+    )
+
     # --- Persistence ---------------------------------------------------------
     database_url: SecretStr = SecretStr("sqlite+aiosqlite:///./callswarm.db")
 
@@ -102,6 +134,15 @@ class Settings(BaseSettings):
         parsed = _split_csv(value)
         if isinstance(parsed, list) and not parsed:
             return list(DEFAULT_REASONING_LEAK_MARKERS)
+        return parsed
+
+    @field_validator("prohibited_agent_purposes", mode="before")
+    @classmethod
+    def _parse_prohibited_purposes(cls, value: object) -> object:
+        # Same rule: an empty value must never disable the boundary check.
+        parsed = _split_csv(value)
+        if isinstance(parsed, list) and not parsed:
+            return list(DEFAULT_PROHIBITED_AGENT_PURPOSES)
         return parsed
 
     @field_validator(

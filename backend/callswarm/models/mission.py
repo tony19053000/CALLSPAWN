@@ -69,10 +69,25 @@ class CallBudget(DomainModel):
 
 
 class ClarificationQuestion(IdentifiedModel):
+    """A question the Orchestrator may ask. ``importance`` is the model's 0-1
+    estimate of how much the answer would change the plan; ``critical`` is set by
+    code from the configured threshold and decides whether the question is asked."""
+
     question: str = Field(min_length=1)
     unblocks_decision: str = ""
+    importance: float = Field(default=0.0, ge=0.0, le=1.0)
     critical: bool = False
     answer: str | None = None
+
+
+class MissionTransition(IdentifiedModel):
+    """One applied mission state transition and the trigger that caused it."""
+
+    mission_id: str
+    from_status: MissionStatus
+    to_status: MissionStatus
+    trigger: str = Field(min_length=1)
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class MissionSpec(DomainModel):

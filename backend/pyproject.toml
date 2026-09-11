@@ -49,6 +49,9 @@ ignore = ["RUF012"]
 # Exception names are fixed by the ticket text (AgentOutputInvalid et al.).
 "callswarm/llm/provider.py" = ["N818"]
 "callswarm/llm/fake.py" = ["N818"]
+"callswarm/orchestrator/state_machine.py" = ["N818"]
+"callswarm/agents/runner.py" = ["N818"]
+"callswarm/strategies/architect.py" = ["N818"]
 
 [tool.mypy]
 python_version = "3.11"

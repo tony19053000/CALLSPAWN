@@ -43,6 +43,7 @@ from callswarm.models.mission import (
     HardConstraint,
     Mission,
     MissionSpec,
+    MissionTransition,
     SoftPreference,
 )
 from callswarm.models.research import (
@@ -95,6 +96,7 @@ __all__ = [
     "Mission",
     "MissionSpec",
     "MissionStatus",
+    "MissionTransition",
     "PlanComponent",
     "PlanOption",
     "Provenance",

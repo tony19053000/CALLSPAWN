@@ -77,7 +77,7 @@ At startup the provider verifies the configured model exists via `client.models.
 **Tests** Both paths; assumption recording; state transitions `MISSION_CREATED → … → MISSION_SPEC_READY`.
 **Safety** The authority policy is captured here, defaulting to calls not allowed until set.
 **Demo** Opening beat of the demo.
-**Status** PENDING
+**Status** DONE
 
 ### CS-011 — Mission state machine
 **Purpose** Deterministic control flow.
@@ -88,7 +88,7 @@ At startup the provider verifies the configured model exists via `client.models.
 **Tests** Full happy path; rejection of illegal transitions; replan loop-backs.
 **Safety** Prevents a model from skipping an authorization state.
 **Demo** Drives the mission timeline.
-**Status** PENDING
+**Status** DONE
 
 ### CS-012 — Strategy generation and pruning
 **Purpose** Solution strategies before specialists.
@@ -99,7 +99,7 @@ At startup the provider verifies the configured model exists via `client.models.
 **Tests** Diversity check; revive-on-evidence test; scenario snapshots.
 **Safety** —
 **Demo** Central to the "it reasons about approach" beat.
-**Status** PENDING
+**Status** DONE
 
 ### CS-013 — Dynamic agent factory
 **Purpose** Generate the swarm from the mission.
@@ -111,7 +111,7 @@ Framework components (Orchestrator, Strategy Architect, Call Strategy, Evidence 
 **Tests** Cross-scenario differentiation; complexity-to-count relationship; tool allow-list enforcement; a grep-style test for domain nouns in framework code.
 **Safety** Tool bounding and policy check on every spec.
 **Demo** The swarm assembling live is the signature moment.
-**Status** PENDING
+**Status** DONE
 
 ### CS-014 — Agent runner and dependency graph
 **Purpose** Execute the generated swarm.
@@ -122,7 +122,7 @@ Framework components (Orchestrator, Strategy Architect, Call Strategy, Evidence 
 **Tests** Parallelism; dependency ordering; failure isolation; spawn-attempt rejection.
 **Safety** Enforces the spawn-authority boundary.
 **Demo** Live status changes in the left panel.
-**Status** PENDING
+**Status** DONE
 
 ---
 

@@ -19,7 +19,13 @@ class StrategyCandidate(IdentifiedModel):
     drawbacks: list[str] = Field(default_factory=list)
     required_information: list[str] = Field(default_factory=list)
     expected_dependencies: list[str] = Field(default_factory=list)
+    objective_axis: str = Field(
+        default="", description="The objective this candidate optimizes for; unique per set"
+    )
     status: StrategyStatus = StrategyStatus.PROPOSED
     status_reason: str | None = None
+    revival_evidence_ref: str | None = Field(
+        default=None, description="Reference to the evidence that revived a pruned strategy"
+    )
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

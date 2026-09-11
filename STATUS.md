@@ -1,18 +1,18 @@
 # STATUS — CallSwarm
 
-_Last updated: 2026-09-11 (Phase 1 complete)_
+_Last updated: 2026-09-11 (Phase 2 complete)_
 
 ## Overall completion
 
-**18%** — Phase 0 and Phase 1 complete (5 of 36 active tickets, all reviewer-PASSed). Backend foundation exists: config, domain models, persistence, LLM provider, event bus with sanitizer.
+**32%** — Phases 0–2 complete (10 of 36 active tickets, all reviewer-PASSed). Backend foundation plus the dynamic-swarm core: deterministic mission state machine, intake with clarification, strategy architect, code-validated agent factory, DAG runner.
 
 ## Current phase
 
-Phase 1 complete → Phase 2 (Mission intake and swarm design).
+Phase 2 complete → Phase 3 (Research and information gaps).
 
 ## Current ticket
 
-`CS-010 — Mission intake and clarification loop` (PENDING). Note CS-010 depends on CS-011 (state machine); implement CS-011 first or together.
+`CS-020 — Research provider abstraction` (PENDING).
 
 ## Completed
 
@@ -24,13 +24,15 @@ Phase 1 complete → Phase 2 (Mission intake and swarm design).
 
 - **Phase 1 (CS-001…CS-005) — reviewer PASS 2026-09-11.** `backend/` package: `config/` typed settings + `/health` capability report; `models/` full domain layer with exact CALL-E enums; `persistence/` 17 async SQLAlchemy tables, repositories, explicit cascade excluding `suppression_entries`; `llm/` `LLMProvider`, `GeminiProvider`, `FakeLLMProvider`, `untrusted_block`; `events/` persisted emitter + SSE with `Last-Event-ID` replay; `sanitize.py` applied at emitter, JSON response hook and artifact persistence. 89 tests, ruff clean, mypy strict clean.
 
+- **Phase 2 (CS-010…CS-014) — reviewer PASS 2026-09-11** after one FAIL (intake merge path did not fail closed; fixed). `orchestrator/state_machine.py` explicit transition table validated against persisted status, `mission_transitions` audit table; `orchestrator/intake.py` + `api/missions.py` create/answer/get with importance-threshold clarification, assumptions, narrowing-only authority clamp, fail-closed to BLOCKED; `strategies/` architect with distinct-axis + Jaccard diversity, prune/revive with persisted reasons; `agents/factory.py` code-side tool allow-list, reserved names, prohibited purposes, overlap merge, DAG/cycle checks, complexity-scored cap with one reduce request then leaf truncation; `agents/runner.py` + `orchestrator/graph.py` bounded-concurrency DAG runner with full lifecycle, one retry, BLOCKED dependents, no spawning, stub tools. Static domain-noun gate verified by the reviewer to fail when a noun is injected. 182 tests.
+
 ## In progress
 
 Nothing.
 
 ## Pending
 
-31 active tickets: CS-010 … CS-064 (excluding CS-046, deferred).
+26 active tickets: CS-020 … CS-064 (excluding CS-046, deferred).
 
 ## Blockers
 
@@ -60,10 +62,10 @@ Nothing.
 
 | Suite | State |
 | --- | --- |
-| Unit + integration (backend) | 89 passed — `backend/.venv/bin/python -m pytest` |
+| Unit + integration (backend) | 182 passed — `backend/.venv/bin/python -m pytest` |
 | End-to-end | not created (CS-060) |
 | Lint (ruff) | All checks passed |
-| Typecheck (mypy, strict) | Success: no issues found in 41 source files |
+| Typecheck (mypy, strict) | Success: no issues found in 59 source files |
 | Build (frontend) | not created (CS-050) |
 
 Test suite blocks all socket connects via `tests/conftest.py`; runs with `CALL_PROVIDER=fake`, `CALLE_LIVE_CALLS_ENABLED=false`.
@@ -121,4 +123,16 @@ Default-off call posture and secret handling are specified in `05_SECURITY_SAFET
 
 **Still unverified.** `gemini-3.5-flash` default against a live listing — no credentials yet.
 
-**Next.** CS-011 (state machine) then CS-010 (intake), CS-012, CS-013, CS-014.
+### 2026-09-11 — Phase 2: mission intake and swarm design (CS-010…CS-014)
+
+**Built.** The dynamic-swarm core. Nothing domain-specific exists in `agents/`, `strategies/` or `orchestrator/`, including string literals and prompt text; a static test enforces it and the reviewer confirmed it fails when a domain noun is injected.
+
+**Decisions.** Authority policy is a structured request field, never inferred from goal text; the model may only narrow it (`clamp_authority`). State transitions validate against the *persisted* status so a forged in-memory status cannot skip a state; every authorization-skipping pair is asserted illegal. Transitions added beyond the `02` diagram, each grounded in `03` prose and reviewed: `CALL_PLAN_READY → REPLAN_DECISION_RUNNING`, `CALL_AUTHORIZATION_PENDING → REPLAN_DECISION_RUNNING`, `REPLAN_DECISION_RUNNING → {RESEARCH_RUNNING, SWARM_DESIGN_RUNNING, CALL_SELECTION_RUNNING}`, `MISSION_REVISION_RUNNING` re-entry points, `BLOCKED`/`CANCELED` from any non-terminal state, `PLAN_OPTIONS_READY → COMPLETE`. Intake fails closed: any `LLMError` during create or merge moves the mission to `BLOCKED` with a plain blocker and the API returns 502/503. Complexity score = hard constraints + distinct categories + strategies, mapped to caps 3/5/7/9; the cap is told to the model up front, one reduce request, then leaf truncation — the cap cannot be exceeded by any model output. Prohibited-purpose matching is keyword-based on name/role/objective/owns; its limits are known and the Critic (CS-044) is the second line. `AgentSpec` gained `owns` and `does_not_control`. Runner tests use a test-local name-routed provider because concurrent agents consume a shared queue nondeterministically; `FakeLLMProvider` itself stays queue-only.
+
+**Review.** Sonnet, diff-scoped. One FAIL: `answer_questions` lacked the fail-closed wrapper that `create_mission` had. Fixed, two regression tests added, retest PASS.
+
+**Must not be changed accidentally.** `TRANSITIONS` table and its illegal-pair assertions; `clamp_authority`; the static domain-noun test in `tests/test_factory.py`; the runner's rule that `orchestrator.request_agent` writes an `AgentRequest` and never spawns.
+
+**Not yet wired.** No mission-level driver ties intake → strategies → factory → runner in one call; that is the Orchestrator loop, built as later phases supply research, calls and evidence.
+
+**Next.** CS-020 research provider, CS-021 pipeline, CS-022 information gaps.

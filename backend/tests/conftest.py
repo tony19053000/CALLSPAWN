@@ -20,7 +20,9 @@ from httpx import ASGITransport, AsyncClient
 from callswarm.api.app import create_app
 from callswarm.config.settings import Settings
 from callswarm.events import ActivityEventEmitter
-from callswarm.models import Mission
+from callswarm.llm import FakeLLMProvider
+from callswarm.models import Mission, MissionStatus
+from callswarm.orchestrator.state_machine import MissionStateMachine
 from callswarm.persistence import Database, MissionRepository
 from callswarm.sanitize import Sanitizer
 
@@ -100,3 +102,41 @@ async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
 def assert_env_is_safe() -> None:
     assert os.environ.get("CALL_PROVIDER") == "fake"
     assert os.environ.get("CALLE_LIVE_CALLS_ENABLED") == "false"
+
+
+# --- Phase 2 fixtures -----------------------------------------------------------
+
+
+@pytest.fixture
+def fake_llm() -> FakeLLMProvider:
+    return FakeLLMProvider()
+
+
+@pytest.fixture
+async def state_machine(database: Database, emitter: ActivityEventEmitter) -> MissionStateMachine:
+    return MissionStateMachine(database, emitter)
+
+
+@pytest.fixture
+async def llm_app(settings: Settings, fake_llm: FakeLLMProvider) -> AsyncIterator[FastAPI]:
+    """The app with the scripted fake provider injected in place of Gemini."""
+    application = create_app(settings, llm_provider=fake_llm)
+    async with application.router.lifespan_context(application):
+        yield application
+
+
+@pytest.fixture
+async def llm_client(llm_app: FastAPI) -> AsyncIterator[AsyncClient]:
+    transport = ASGITransport(app=llm_app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as http:
+        yield http
+
+
+async def set_mission_status(
+    database: Database, mission: Mission, status: MissionStatus
+) -> Mission:
+    """Test-only: force a persisted status to start a scenario mid-flow."""
+    async with database.session() as session:
+        return await MissionRepository(session).update(
+            mission.model_copy(update={"status": status})
+        )

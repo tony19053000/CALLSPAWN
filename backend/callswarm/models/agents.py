@@ -19,11 +19,13 @@ class AgentSpec(IdentifiedModel):
     role: str = Field(min_length=1)
     objective: str = Field(min_length=1)
     why_needed: str = Field(min_length=1)
+    owns: str = Field(default="", description="The exact problem this agent owns")
     strategy_id: str | None = None
     allowed_tools: list[str] = Field(default_factory=list)
     required_inputs: list[str] = Field(default_factory=list)
     dependencies: list[str] = Field(default_factory=list, description="AgentSpec ids")
     expected_output_schema: dict[str, Any] = Field(default_factory=dict)
+    does_not_control: list[str] = Field(default_factory=list)
     stop_conditions: list[str] = Field(default_factory=list)
     risk_level: RiskLevel = RiskLevel.LOW
     state: AgentState = AgentState.CREATED
@@ -57,3 +59,7 @@ class AgentRun(IdentifiedModel):
     activity_summary: str = ""
     output_artifact: dict[str, Any] | None = None
     error: str | None = None
+    stop_reason: str | None = None
+    call_intent_id: str | None = Field(
+        default=None, description="Set when the run is WAITING_FOR_CALL on a requested intent"
+    )

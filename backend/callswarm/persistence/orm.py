@@ -74,6 +74,19 @@ class MissionRow(Base):
     blocker: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class MissionTransitionRow(Base):
+    """Append-only log of applied mission state transitions."""
+
+    __tablename__ = "mission_transitions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    mission_id: Mapped[str] = _mission_fk()
+    from_status: Mapped[str] = mapped_column(String(64), nullable=False)
+    to_status: Mapped[str] = mapped_column(String(64), nullable=False)
+    trigger: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
+
+
 class StrategyCandidateRow(Base):
     __tablename__ = "strategy_candidates"
 
@@ -86,8 +99,10 @@ class StrategyCandidateRow(Base):
     drawbacks: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     required_information: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     expected_dependencies: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
+    objective_axis: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     status_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    revival_evidence_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
 
@@ -101,11 +116,13 @@ class AgentSpecRow(Base):
     role: Mapped[str] = mapped_column(String(255), nullable=False)
     objective: Mapped[str] = mapped_column(Text, nullable=False)
     why_needed: Mapped[str] = mapped_column(Text, nullable=False)
+    owns: Mapped[str] = mapped_column(Text, nullable=False, default="")
     strategy_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     allowed_tools: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     required_inputs: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     dependencies: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     expected_output_schema: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    does_not_control: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
     stop_conditions: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     risk_level: Mapped[str] = mapped_column(String(16), nullable=False)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -140,6 +157,8 @@ class AgentRunRow(Base):
     activity_summary: Mapped[str] = mapped_column(Text, nullable=False)
     output_artifact: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stop_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    call_intent_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class ResearchArtifactRow(Base):
@@ -350,5 +369,6 @@ MISSION_SCOPED_TABLES: tuple[type[Base], ...] = (
     AgentRequestRow,
     AgentSpecRow,
     StrategyCandidateRow,
+    MissionTransitionRow,
     ActivityEventRow,
 )
