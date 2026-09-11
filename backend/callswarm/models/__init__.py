@@ -59,6 +59,7 @@ from callswarm.models.research import (
     ResearchQuery,
 )
 from callswarm.models.strategy import StrategyCandidate
+from callswarm.models.webhooks import WebhookReceipt
 
 __all__ = [
     "ActivityEvent",
@@ -120,6 +121,7 @@ __all__ = [
     "StrategyStatus",
     "SuppressionEntry",
     "WebhookEventType",
+    "WebhookReceipt",
     "hash_phone",
     "new_id",
     "utcnow",

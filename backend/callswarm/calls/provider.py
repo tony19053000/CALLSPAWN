@@ -45,6 +45,7 @@ from callswarm.models import (
     Approval,
     ApprovalStatus,
     ApprovalSubjectType,
+    CallAuthorizationState,
     CallIntent,
     CallRecipient,
     CallRun,
@@ -53,6 +54,7 @@ from callswarm.models import (
     DomainModel,
     Mission,
     RecipientResult,
+    ScheduledJobStatus,
     utcnow,
 )
 from callswarm.persistence import (
@@ -60,9 +62,17 @@ from callswarm.persistence import (
     CallIntentRepository,
     Database,
     MissionRepository,
+    ScheduledJobRepository,
 )
 
 IDEMPOTENCY_KEY_MAX_LENGTH = 255
+CALL_INTENT_JOB_KEY = "call_intent_id"
+NON_TERMINAL_STATUSES: frozenset[CallStatus] = frozenset(
+    {CallStatus.QUEUED, CallStatus.IN_PROGRESS}
+)
+TERMINAL_STATUSES: frozenset[CallStatus] = frozenset(
+    {CallStatus.COMPLETED, CallStatus.FAILED, CallStatus.CANCELED}
+)
 
 
 # --- errors ----------------------------------------------------------------------------
@@ -340,3 +350,39 @@ def _require_matching_approval(plan: CallPlan, approval: Approval, now: datetime
         raise CallNotAuthorized(f"approval is {approval.status.value}, not APPROVED")
     if approval.expires_at is not None and approval.expires_at <= now:
         raise CallNotAuthorized("approval is EXPIRED")
+
+
+async def cancel_intent_locally(database: Database, intent: CallIntent) -> CallIntent:
+    """Shared ``cancel_local`` body: block an unexecuted intent and cancel any
+    unfired scheduled job that points at it. Callers check for an executed run
+    first; there is no remote cancel and an executed intent cannot be recalled."""
+    async with database.session() as session:
+        intents = CallIntentRepository(session)
+        stored = await intents.get(intent.id)
+        if stored is None:
+            raise CallProviderError(f"intent {intent.id!r} not found")
+        updated = await intents.update(
+            stored.model_copy(
+                update={
+                    "authorization_state": CallAuthorizationState.BLOCKED,
+                    "rejection_reason": "canceled locally before execution",
+                    "updated_at": utcnow(),
+                }
+            )
+        )
+        jobs = ScheduledJobRepository(session)
+        for job in await jobs.list_by_mission(intent.mission_id):
+            if (
+                job.status is ScheduledJobStatus.PENDING
+                and job.payload.get(CALL_INTENT_JOB_KEY) == intent.id
+            ):
+                await jobs.update(
+                    job.model_copy(
+                        update={
+                            "status": ScheduledJobStatus.CANCELED,
+                            "status_reason": "call intent canceled locally",
+                            "updated_at": utcnow(),
+                        }
+                    )
+                )
+    return updated

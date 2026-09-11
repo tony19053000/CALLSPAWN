@@ -208,6 +208,8 @@ Configured credentials are not permission to dial. Neither is a public phone num
 - Phone numbers are masked (`+91 ••••• ••210`) in all logs, activity events and ordinary UI. Full numbers live only in the database and in the request to CALL-E.
 - No real phone number is committed to the repository or to fixtures.
 
+**Ambiguous creates are conservative by design.** If a create times out or returns 5xx, the service replays it once under the same idempotency key. If that replay is also ambiguous, the mission is `BLOCKED` with no run persisted and no budget unit consumed — CALL-E may still hold the task. The attempt record is process memory, so after a restart `reconcile` refuses rather than guessing. Recovery is an operator step: check `calle call status` / `GET /v1/calls/{id}` (or `calle call recover`) and record the outcome manually. This is deliberate: an unknown state must never be resolved by dialing again.
+
 ## Webhook receiver
 
 `POST /calle/webhook` on our side is declared `security: []` in the vendored spec — unauthenticated by construction — and its payload carries a full `CallTask` including `structured_result` that would otherwise flow straight into the Reality Graph. Anyone who can reach the public URL could inject fabricated call evidence. The receiver (ticket CS-036) therefore:

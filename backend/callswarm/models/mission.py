@@ -57,6 +57,7 @@ class AuthorityPolicy(DomainModel):
     negotiation_allowed: bool = False
     scheduled_follow_up_allowed: bool = False
     confirmation_calls_allowed: bool = False
+    escalation_allowed: bool = False
 
 
 class CallBudget(DomainModel):

@@ -54,6 +54,10 @@ ignore = ["RUF012"]
 "callswarm/strategies/architect.py" = ["N818"]
 "callswarm/research/provider.py" = ["N818"]
 "callswarm/calls/provider.py" = ["N818"]
+# AmbiguousCreate and CallPollTimeout are named by the CS-032 ticket; ``timeout`` is a
+# wall-clock budget on a polling loop, not an asyncio cancellation scope.
+"callswarm/calls/calle.py" = ["N818", "ASYNC109"]
+"callswarm/calls/patterns.py" = ["N818"]
 "callswarm/calls/schema.py" = ["N818"]
 "callswarm/approvals/service.py" = ["N818"]
 

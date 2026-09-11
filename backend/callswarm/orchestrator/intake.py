@@ -75,6 +75,7 @@ class AuthorityProposal(BaseModel):
     negotiation_allowed: bool | None = None
     scheduled_follow_up_allowed: bool | None = None
     confirmation_calls_allowed: bool | None = None
+    escalation_allowed: bool | None = None
 
 
 class DraftMissionSpec(BaseModel):
@@ -190,6 +191,8 @@ def clamp_authority(
         and narrow(current.scheduled_follow_up_allowed, proposal.scheduled_follow_up_allowed),
         confirmation_calls_allowed=calls_allowed
         and narrow(current.confirmation_calls_allowed, proposal.confirmation_calls_allowed),
+        escalation_allowed=calls_allowed
+        and narrow(current.escalation_allowed, proposal.escalation_allowed),
     )
 
 

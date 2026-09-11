@@ -13,7 +13,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, ClassVar, Generic, TypeVar
 
-from sqlalchemy import JSON, delete, select
+from sqlalchemy import JSON, CursorResult, delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from callswarm.models import (
@@ -35,6 +35,7 @@ from callswarm.models import (
     ScheduledJob,
     StrategyCandidate,
     SuppressionEntry,
+    WebhookReceipt,
 )
 from callswarm.models.base import IdentifiedModel
 from callswarm.models.enums import ScheduledJobStatus
@@ -59,6 +60,7 @@ from callswarm.persistence.orm import (
     ScheduledJobRow,
     StrategyCandidateRow,
     SuppressionEntryRow,
+    WebhookReceiptRow,
 )
 from callswarm.sanitize import Sanitizer
 
@@ -334,6 +336,29 @@ class CallRunRepository(Repository[CallRun, CallRunRow]):
             await self._recipients.add_for_run(stored, result)
         return await self._with_recipients(stored)
 
+    async def promote_to_terminal(
+        self, model: CallRun, non_terminal: Sequence[str]
+    ) -> CallRun | None:
+        """Write ``model`` over the row **only if** the row is still in one of
+        ``non_terminal``: a single conditional ``UPDATE … WHERE id = ? AND
+        status IN (...)``. Exactly one concurrent caller sees the row change
+        (``rowcount == 1``) and gets the stored run back; every other caller
+        gets ``None`` and must not write claims or events for it."""
+        values = {k: v for k, v in self._to_values(model).items() if k != "id"}
+        result: CursorResult[Any] = await self.session.execute(  # type: ignore[assignment]
+            update(CallRunRow)
+            .where(CallRunRow.id == model.id, CallRunRow.status.in_(list(non_terminal)))
+            .values(**values)
+        )
+        if result.rowcount != 1:
+            return None
+        await self._recipients.delete_by_run(model.id)
+        for recipient in model.recipient_results:
+            await self._recipients.add_for_run(model, recipient)
+        stored = await super().get(model.id)
+        assert stored is not None
+        return await self._with_recipients(stored)
+
 
 class EvidenceClaimRepository(Repository[EvidenceClaim, EvidenceClaimRow]):
     domain = EvidenceClaim
@@ -431,3 +456,21 @@ class ScheduledJobRepository(Repository[ScheduledJob, ScheduledJobRow]):
             .order_by(ScheduledJobRow.due_at)
         )
         return [self._from_row(row) for row in result.scalars()]
+
+
+class WebhookReceiptRepository(Repository[WebhookReceipt, WebhookReceiptRow]):
+    """Not mission-scoped. ``event_id`` is unique: a second insert for the same
+    event id fails at the database, which is the idempotency guarantee."""
+
+    domain = WebhookReceipt
+    row = WebhookReceiptRow
+
+    async def get_by_event_id(self, event_id: str) -> WebhookReceipt | None:
+        result = await self.session.execute(
+            select(WebhookReceiptRow).where(WebhookReceiptRow.event_id == event_id)
+        )
+        row = result.scalar_one_or_none()
+        return None if row is None else self._from_row(row)
+
+    async def list_by_mission(self, mission_id: str) -> list[WebhookReceipt]:
+        raise NotImplementedError("webhook receipts are not mission-scoped")

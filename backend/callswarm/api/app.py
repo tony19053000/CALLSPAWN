@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from callswarm import __version__
-from callswarm.api import approvals, events, health, missions
+from callswarm.api import approvals, events, health, missions, webhooks
 from callswarm.api.sanitizer_middleware import SanitizingJSONMiddleware
 from callswarm.calls.gates import CallGate
 from callswarm.calls.service import select_call_provider
@@ -91,6 +91,9 @@ def create_app(
         try:
             yield
         finally:
+            closer = getattr(app.state.call_provider, "aclose", None)
+            if closer is not None:
+                await closer()
             await database.dispose()
 
     app = FastAPI(title="CallSwarm", version=__version__, lifespan=lifespan)
@@ -106,6 +109,7 @@ def create_app(
     app.include_router(missions.router)
     app.include_router(events.router)
     app.include_router(approvals.router)
+    app.include_router(webhooks.router)
     return app
 
 

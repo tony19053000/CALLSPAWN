@@ -77,6 +77,44 @@ def test_empty_secret_env_values_become_none(monkeypatch: pytest.MonkeyPatch) ->
     assert s.calle_api_key is None
 
 
+def test_webhook_url_without_secret_refuses_startup() -> None:
+    with pytest.raises(ValueError, match="CALLE_WEBHOOK_SECRET is empty"):
+        Settings(_env_file=None, calle_webhook_url="https://example.test/calle/webhook/abc")
+    with pytest.raises(ValueError, match="CALLE_WEBHOOK_SECRET is empty"):
+        Settings(
+            _env_file=None,
+            calle_webhook_url="https://example.test/calle/webhook/abc",
+            calle_webhook_secret="",
+        )
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.test/calle/webhook",
+        "https://example.test/calle/webhook/other",
+        "https://example.test/calle/webhook/abc/extra",
+        "https://example.test/webhook/abc",
+        "https://example.test/prefix/calle/webhook/abc",
+    ],
+)
+def test_webhook_url_not_ending_in_the_secret_refuses_startup(url: str) -> None:
+    with pytest.raises(ValueError, match="must end with /calle/webhook/"):
+        Settings(_env_file=None, calle_webhook_url=url, calle_webhook_secret="abc")
+
+
+def test_webhook_url_ending_in_the_secret_is_accepted() -> None:
+    for url in (
+        "https://example.test/calle/webhook/abc",
+        "https://example.test/calle/webhook/abc/",
+        "https://example.test/calle/webhook/abc?x=1",
+    ):
+        s = Settings(_env_file=None, calle_webhook_url=url, calle_webhook_secret="abc")
+        assert s.calle_webhook_url == url
+    # No URL means polling; a secret alone is fine.
+    assert Settings(_env_file=None, calle_webhook_secret="abc").calle_webhook_url is None
+
+
 def test_missing_optional_keys_do_not_crash_startup(tmp_path: Path) -> None:
     s = Settings(_env_file=None, database_url=f"sqlite+aiosqlite:///{tmp_path / 'x.db'}")
     application = create_app(s)

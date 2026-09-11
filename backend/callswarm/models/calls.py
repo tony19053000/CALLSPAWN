@@ -53,6 +53,10 @@ class CallIntent(IdentifiedModel):
     result_schema: dict[str, Any] = Field(default_factory=dict)
     recipient_result_schema: dict[str, Any] | None = None
     rejection_reason: str | None = None
+    pattern_progress: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Progress recorded by the call-pattern runner (calls/patterns.py)",
+    )
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 

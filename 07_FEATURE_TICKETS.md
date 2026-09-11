@@ -197,7 +197,7 @@ Recipient-level results from a fan-out call are mapped into `CallRun.recipient_r
 **Tests** Against a recorded-response mock of the spec; idempotency; replay-based reconciliation; null-result handling; execute raises for approvals in `PENDING`, `REJECTED` and `EXPIRED`; execute raises when the env switch is off; event pagination.
 **Safety** Idempotency, masking, no blind retry, in-provider gate enforcement.
 **Demo** The real call.
-**Status** PENDING
+**Status** DONE
 
 ### CS-033 — Result schema generator and validator
 **Purpose** Per-call structured extraction that respects CALL-E's constraints.
@@ -231,7 +231,7 @@ The validator also rejects any **required non-enum field whose description impli
 **Tests** Each pattern against the fake provider; the second-round negotiation path end to end.
 **Safety** Every pattern passes through the same gates.
 **Demo** The negotiation beat.
-**Status** PENDING
+**Status** DONE
 
 ### CS-036 — Terminal webhook receiver
 **Purpose** Receive CALL-E terminal events safely.
@@ -242,7 +242,7 @@ The validator also rejects any **required non-enum field whose description impli
 **Tests** Forged payload; replayed event id; wrong secret; mismatched metadata; happy path.
 **Safety** Closes the evidence-injection hole on an unauthenticated public endpoint.
 **Demo** Real-time call completion in the UI.
-**Status** PENDING
+**Status** DONE
 
 ---
 

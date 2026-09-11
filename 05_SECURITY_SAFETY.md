@@ -28,6 +28,10 @@ A publicly listed phone number is not consent to be called by an automated syste
 
 No deceptive outreach. No impersonation of a human or of another organization. No spam. Hackathon testing dials only consenting, authorized test recipients — never businesses discovered by research.
 
+## Webhook secret
+
+CALL-E terminal webhooks are unsigned (the official SDK's HMAC helpers are deprecated), so the receiver is protected by a shared secret carried in the URL path, `/calle/webhook/{secret}`. That token therefore appears in any reverse-proxy or server access log. Treat it as a credential: keep proxy logs private, rotate it by changing `CALLE_WEBHOOK_SECRET` and `CALLE_WEBHOOK_URL` together, and move to signature verification the moment CALL-E publishes one. Startup refuses a `CALLE_WEBHOOK_URL` whose path does not end in the configured secret, so a misconfigured URL cannot silently strand runs.
+
 ## High-risk boundaries
 
 CallSwarm V1 does not autonomously provide medical diagnosis or legal advice, trade financial assets, request passwords, OTPs or PINs, contact emergency services, make high-stakes eligibility decisions, deceive recipients, impersonate humans, perform debt collection, conduct political persuasion, or make irreversible financial commitments without explicit approval.

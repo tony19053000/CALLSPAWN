@@ -1,7 +1,15 @@
-"""Call layer: provider abstraction, fake provider, gates, scoring, schema, strategy."""
+"""Call layer: provider abstraction, fake and CALL-E providers, gates, scoring,
+schema, strategy, patterns."""
 
+from callswarm.calls.calle import AmbiguousCreate, CalleAPIError, CalleProvider, CallPollTimeout
 from callswarm.calls.fake import FakeCallProvider, FakeScript
 from callswarm.calls.gates import CallGate
+from callswarm.calls.patterns import (
+    PassCondition,
+    PatternOptions,
+    PatternOutcome,
+    PatternRunner,
+)
 from callswarm.calls.provider import (
     AuthorizedPlan,
     CallBudgetExceeded,
@@ -38,6 +46,7 @@ from callswarm.calls.service import CallExecutionResult, CallService, select_cal
 from callswarm.calls.strategy import CallPlanResult, CallStrategy
 
 __all__ = [
+    "AmbiguousCreate",
     "AuthorizedPlan",
     "CallBudgetExceeded",
     "CallEvent",
@@ -47,18 +56,25 @@ __all__ = [
     "CallNotAuthorized",
     "CallPlan",
     "CallPlanResult",
+    "CallPollTimeout",
     "CallProviderError",
     "CallProviderNotAvailable",
     "CallResult",
     "CallSelection",
     "CallService",
     "CallStrategy",
+    "CalleAPIError",
+    "CalleProvider",
     "EventPage",
     "FakeCallProvider",
     "FakeScript",
     "GatedCallProvider",
     "IntentAlreadyExecuted",
     "LiveCallsDisabled",
+    "PassCondition",
+    "PatternOptions",
+    "PatternOutcome",
+    "PatternRunner",
     "PriorityWeights",
     "QuietHours",
     "RecipientNotAllowed",

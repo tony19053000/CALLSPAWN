@@ -22,6 +22,7 @@ from callswarm.persistence.repositories import (
     ScheduledJobRepository,
     StrategyCandidateRepository,
     SuppressionEntryRepository,
+    WebhookReceiptRepository,
 )
 
 __all__ = [
@@ -47,4 +48,5 @@ __all__ = [
     "ScheduledJobRepository",
     "StrategyCandidateRepository",
     "SuppressionEntryRepository",
+    "WebhookReceiptRepository",
 ]

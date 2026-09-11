@@ -222,6 +222,7 @@ class CallIntentRow(Base):
     result_schema: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     recipient_result_schema: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pattern_progress: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
 
@@ -351,6 +352,21 @@ class SuppressionEntryRow(Base):
     source: Mapped[str] = mapped_column(String(255), nullable=False)
     scope: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+
+
+class WebhookReceiptRow(Base):
+    """One row per CALL-E webhook event id, written before any side effect so a
+    duplicate delivery is a no-op. Not mission-scoped: the receipt is recorded
+    before the payload is correlated to a mission, and it must survive."""
+
+    __tablename__ = "webhook_receipts"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    event_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    received_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    call_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 # Explicit cascade list, deleted in this order (children before parents).

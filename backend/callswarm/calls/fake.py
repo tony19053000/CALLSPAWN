@@ -28,6 +28,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from callswarm.calls.provider import (
+    CALL_INTENT_JOB_KEY,
     AuthorizedPlan,
     CallEvent,
     CallGateProtocol,
@@ -37,12 +38,12 @@ from callswarm.calls.provider import (
     EventPage,
     GatedCallProvider,
     IntentAlreadyExecuted,
+    cancel_intent_locally,
     idempotency_key,
 )
 from callswarm.calls.schema import validate_result_against_schema, validate_result_schema
 from callswarm.config.settings import Settings
 from callswarm.models import (
-    CallAuthorizationState,
     CallIntent,
     CallRun,
     CallStatus,
@@ -50,18 +51,17 @@ from callswarm.models import (
     DomainModel,
     RecipientResult,
     RecipientStatus,
-    ScheduledJobStatus,
     new_id,
     utcnow,
 )
-from callswarm.persistence import CallIntentRepository, Database, ScheduledJobRepository
+from callswarm.persistence import Database
 from callswarm.sanitize import mask_phone
 
 FakeOutcome = Literal["completed", "failed", "result_validation_failed"]
 
 SIMULATED_SUMMARY_PREFIX = "[SIMULATED]"
 NO_SCRIPT_SUMMARY = f"{SIMULATED_SUMMARY_PREFIX} No scripted result; nothing was established."
-CALL_INTENT_JOB_KEY = "call_intent_id"
+__all__ = ["CALL_INTENT_JOB_KEY", "FakeCallProvider", "FakeScript"]
 
 
 class FakeScript(DomainModel):
@@ -274,33 +274,4 @@ class FakeCallProvider(GatedCallProvider):
             raise IntentAlreadyExecuted(
                 f"intent {intent.id!r} has already executed; CALL-E exposes no cancel"
             )
-        async with self._database.session() as session:
-            intents = CallIntentRepository(session)
-            stored = await intents.get(intent.id)
-            if stored is None:
-                raise CallProviderError(f"intent {intent.id!r} not found")
-            updated = await intents.update(
-                stored.model_copy(
-                    update={
-                        "authorization_state": CallAuthorizationState.BLOCKED,
-                        "rejection_reason": "canceled locally before execution",
-                        "updated_at": utcnow(),
-                    }
-                )
-            )
-            jobs = ScheduledJobRepository(session)
-            for job in await jobs.list_by_mission(intent.mission_id):
-                if (
-                    job.status is ScheduledJobStatus.PENDING
-                    and job.payload.get(CALL_INTENT_JOB_KEY) == intent.id
-                ):
-                    await jobs.update(
-                        job.model_copy(
-                            update={
-                                "status": ScheduledJobStatus.CANCELED,
-                                "status_reason": "call intent canceled locally",
-                                "updated_at": utcnow(),
-                            }
-                        )
-                    )
-        return updated
+        return await cancel_intent_locally(self._database, intent)

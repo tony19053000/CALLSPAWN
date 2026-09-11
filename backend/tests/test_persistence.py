@@ -230,6 +230,7 @@ async def test_schema_covers_every_persisted_entity(database: Database) -> None:
         "suppression_entries",
         "scheduled_jobs",
         "mission_transitions",
+        "webhook_receipts",  # CS-036 event-id idempotency record
     }
 
 
@@ -370,8 +371,10 @@ def test_suppression_is_structurally_mission_independent() -> None:
     scoped = {t.__tablename__ for t in MISSION_SCOPED_TABLES}
     assert "suppression_entries" not in scoped
     assert "scheduled_jobs" in scoped
+    # webhook_receipts is the CALL-E event-id idempotency record: it is written
+    # before a payload is correlated to any mission and must outlive missions.
     for table in Base.metadata.sorted_tables:
-        if table.name in ("missions", "suppression_entries"):
+        if table.name in ("missions", "suppression_entries", "webhook_receipts"):
             continue
         assert table.name in scoped, f"{table.name} has no cascade coverage"
 

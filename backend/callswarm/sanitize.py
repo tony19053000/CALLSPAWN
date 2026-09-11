@@ -60,6 +60,15 @@ def contains_phone(text: str) -> bool:
     return _PHONE_RE.search(text) is not None
 
 
+def replace_phones(text: str, replacement: str) -> str:
+    """Replace every E.164-looking number in ``text`` with ``replacement``.
+
+    Used where a number must not appear at all (for example in the prose task
+    handed to the call provider, which receives the number as structured
+    recipient data instead)."""
+    return _PHONE_RE.sub(replacement, text)
+
+
 class Sanitizer:
     """Deterministic masking plus reasoning-leak rejection."""
 

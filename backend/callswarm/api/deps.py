@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from fastapi import Request
 
+from callswarm.approvals import ApprovalService
+from callswarm.calls.service import CallService
 from callswarm.config.settings import Settings
 from callswarm.events import ActivityEventEmitter
 from callswarm.llm import LLMProvider
@@ -41,4 +43,18 @@ def get_intake_dep(request: Request) -> MissionIntake:
     state = request.app.state
     return MissionIntake(
         state.database, state.emitter, state.llm_provider, state.settings, state.state_machine
+    )
+
+
+def get_call_service_dep(request: Request) -> CallService:
+    state = request.app.state
+    approvals = ApprovalService(state.database, state.emitter, state.settings, state.state_machine)
+    return CallService(
+        state.call_provider,
+        state.call_gate,
+        approvals,
+        state.database,
+        state.emitter,
+        state.settings,
+        state.state_machine,
     )

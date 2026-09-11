@@ -99,7 +99,9 @@ async def test_selecting_calle_raises_and_never_falls_back(
         call_provider="calle",
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'x.db'}",
     )
-    with pytest.raises(CallProviderNotAvailable, match="not implemented"):
+    # CS-032: the provider exists now, but without CALLE_API_KEY it still refuses
+    # to start rather than substituting the fake provider.
+    with pytest.raises(CallProviderNotAvailable, match="requires CALLE_API_KEY"):
         select_call_provider(s, database, emitter)
 
 

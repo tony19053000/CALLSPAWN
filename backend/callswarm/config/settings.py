@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 CallProviderName = Literal["fake", "calle"]
@@ -55,6 +56,10 @@ def _split_csv(value: object) -> object:
     return value
 
 
+# The receiver route in ``api/webhooks.py``; the secret is the final path segment.
+WEBHOOK_PATH_PREFIX = "/calle/webhook"
+
+
 class Settings(BaseSettings):
     """Application configuration loaded from the environment."""
 
@@ -78,6 +83,11 @@ class Settings(BaseSettings):
     calle_webhook_url: str | None = None
     calle_webhook_secret: SecretStr | None = None
     calle_live_calls_enabled: bool = False
+    # HTTP timeout for one CALL-E API request, and the polling profile used by
+    # ``CalleProvider.wait_for_terminal`` when no webhook URL is configured.
+    calle_request_timeout_seconds: float = Field(default=30.0, gt=0.0, le=120.0)
+    calle_poll_interval_seconds: float = Field(default=2.0, gt=0.0, le=60.0)
+    calle_poll_timeout_seconds: float = Field(default=900.0, gt=0.0, le=7200.0)
     call_provider: CallProviderName = "fake"
     call_max_per_mission: int = Field(default=5, ge=0)
     call_quiet_hours_start: str = "21:00"
@@ -190,6 +200,29 @@ class Settings(BaseSettings):
         if isinstance(value, str) and value.strip() == "":
             return None
         return value
+
+    @model_validator(mode="after")
+    def _webhook_url_must_carry_the_secret(self) -> Settings:
+        """With ``CALLE_WEBHOOK_URL`` set the provider never polls: the terminal
+        state arrives only by webhook. A URL the receiver would reject (no
+        secret, or a path token other than the secret) would strand every
+        run in ``CALL_EXECUTION_RUNNING``, so refuse to start instead."""
+        if self.calle_webhook_url is None:
+            return self
+        secret = self.calle_webhook_secret.get_secret_value() if self.calle_webhook_secret else ""
+        if not secret:
+            raise ValueError(
+                "CALLE_WEBHOOK_URL is set but CALLE_WEBHOOK_SECRET is empty; the receiver "
+                "would reject every delivery and runs would never finish"
+            )
+        path = urlsplit(self.calle_webhook_url).path.rstrip("/")
+        if path != f"{WEBHOOK_PATH_PREFIX}/{secret}":
+            raise ValueError(
+                f"CALLE_WEBHOOK_URL path must end with {WEBHOOK_PATH_PREFIX}/<secret> where "
+                "<secret> is CALLE_WEBHOOK_SECRET; the receiver would reject every delivery "
+                "and runs would never finish"
+            )
+        return self
 
     # --- Derived, secret-free views -----------------------------------------
     @property

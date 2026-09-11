@@ -1,18 +1,18 @@
 # STATUS — CallSwarm
 
-_Last updated: 2026-09-11 (Phase 4a complete)_
+_Last updated: 2026-09-11 (Phase 4 complete)_
 
 ## Overall completion
 
-**50%** — Phases 0–3 and 4a complete (17 of 36 active tickets, all reviewer-PASSed). Foundation, dynamic-swarm core, research layer, and the call-planning and authorization core: gated provider base, fake provider, CALL-E-constrained result schemas, deterministic call-value scoring and selection, approval service and gates.
+**58%** — Phases 0–4 complete (20 of 36 active tickets, all reviewer-PASSed). Foundation, dynamic-swarm core, research layer, and the complete call layer: gated provider base, fake and real CALL-E providers, result schemas, scoring, approvals and gates, nine call patterns, hardened webhook receiver.
 
 ## Current phase
 
-Phase 4a complete → Phase 4b (real CALL-E provider, patterns, webhook).
+Phase 4 complete → Phase 5 (Evidence, optimization, review).
 
 ## Current ticket
 
-`CS-032 — CALL-E provider implementation` (PENDING).
+`CS-040 — Reality Graph and evidence engine` (PENDING).
 
 ## Completed
 
@@ -30,13 +30,15 @@ Phase 4a complete → Phase 4b (real CALL-E provider, patterns, webhook).
 
 - **Phase 4a (CS-030, CS-031, CS-033, CS-034) — reviewer PASS 2026-09-11** with two medium non-blocking findings fixed before commit. `calls/provider.py` protocol + `GatedCallProvider` whose `@final` `execute` reloads intent/approval/mission from the DB by id and runs the gate before the abstract `_execute_authorized`, with an `__init_subclass__` guard against override; `calls/fake.py` default provider, `is_simulated` class constant, real status sequence, scripted outcomes incl. `None` and validation-failed; `CALL_PROVIDER=calle` raises at startup, never falls back; `calls/schema.py` CALL-E-subset validator (enums must contain `unknown`, booleans rejected, required-but-omittable rejected, reserved names rejected) with one guided retry; `calls/scoring.py` pure `compute_priority` + `select_calls` with a reason for every rejection; `calls/strategy.py` intents per callable candidate, code-validated patterns, `raw_phone` → gap not intent; `approvals/` service + `POST .../decision` with a required typed body (422 on anything else); `calls/gates.py` ordered gates each emitting a number-free refusal event; `calls/regions.py` quiet hours by region; `CallService.execute_call` idempotent on repeat. 357 tests.
 
+- **Phase 4b (CS-032, CS-035, CS-036) — reviewer PASS 2026-09-11 (Opus, per escalation rule)** after one FAIL (concurrent `finalize_run` duplicated claims). `calls/calle.py` `CalleProvider` against the Developer API with base URL re-confirmed from three live sources, explicit `recipients[]`, deterministic `Idempotency-Key`, no phone in `task` prose, exact enum mapping, `structured_result: null` as unresolved, paginated events, `AmbiguousCreate` → byte-identical replay never a fresh POST, `wait_for_terminal` with backoff; `calls/patterns.py` nine handlers all dialing only via `execute_call`; `api/webhooks.py` constant-time path token, receipt-before-side-effect, duplicate no-op, correlation check, authoritative re-read before any claim write; `CallRunRepository.promote_to_terminal` conditional UPDATE making finalization atomic; settings validator refusing a webhook URL that does not carry the secret. 447 tests.
+
 ## In progress
 
 Nothing.
 
 ## Pending
 
-19 active tickets: CS-032, CS-035, CS-036, CS-040 … CS-064 (excluding CS-046, deferred).
+16 active tickets: CS-040 … CS-064 (excluding CS-046, deferred).
 
 ## Blockers
 
@@ -48,6 +50,7 @@ Nothing.
 
 - **Integration chosen:** Developer API over HTTP from the Python backend (`CalleProvider`), with `calle-ai` SDK usage where it maps cleanly. MCP (`plan_call` / `run_call` / `get_call_run`) documented as the alternate path.
 - **Contract verified:** 2026-09-11, against the official integrations repo, docs site and OpenAPI spec `0.7.0`. Snapshot vendored.
+- **Provider implemented:** `CalleProvider` (CS-032) complete and reviewed; base URL `https://api.heycall-e.com` confirmed by the integrations README and the `calle-ai` 0.7.0 SDK default. Not yet exercised against the network (CS-062).
 - **Auth state:** CLI authenticated. `@call-e/cli` installed globally on 2026-09-11; `calle auth status` reports `usable: true`, token cached at `~/.calle-mcp/cli/.../token.json`, expiry `2029-06-05T02:50:29Z`. `calle mcp tools` confirms `plan_call`, `run_call`, `get_call_run`. No `CALLE_API_KEY` yet for the backend HTTP path — see Blockers.
 - **Live calls:** DISABLED (`CALLE_LIVE_CALLS_ENABLED=false`, `CALL_PROVIDER=fake`).
 - **Real test status:** not yet attempted (ticket CS-062).
@@ -66,10 +69,10 @@ Nothing.
 
 | Suite | State |
 | --- | --- |
-| Unit + integration (backend) | 357 passed — `backend/.venv/bin/python -m pytest` |
+| Unit + integration (backend) | 447 passed — `backend/.venv/bin/python -m pytest` |
 | End-to-end | not created (CS-060) |
 | Lint (ruff) | All checks passed |
-| Typecheck (mypy, strict) | Success: no issues found in 85 source files |
+| Typecheck (mypy, strict) | Success: no issues found in 92 source files |
 | Build (frontend) | not created (CS-050) |
 
 Test suite blocks all socket connects via `tests/conftest.py`; runs with `CALL_PROVIDER=fake`, `CALLE_LIVE_CALLS_ENABLED=false`.
@@ -161,4 +164,16 @@ Default-off call posture and secret handling are specified in `05_SECURITY_SAFET
 
 **Must not be changed accidentally.** `GatedCallProvider.execute` finality and its DB-reload of intent/approval/mission; gate order in `calls/gates.py`; "empty allow-list = allow none when live"; `CALL_PROVIDER=calle` hard failure without an implementation.
 
-**Next.** Phase 4b — CS-032 `CalleProvider` against the Developer API (re-confirm base URL against live docs first), CS-035 call patterns, CS-036 webhook receiver. Review on Opus per the escalation rule.
+### 2026-09-11 — Phase 4b: real CALL-E provider, patterns, webhook (CS-032, CS-035, CS-036)
+
+**Built.** The only code that can place a real phone call, plus the pattern layer and the webhook receiver. A session restart interrupted the first coder mid-phase; a second coder verified the receiver line by line (no changes needed) and wrote its 18 tests.
+
+**Verified, not assumed.** Base URL re-checked against `docs.heycall-e.com/quickstart` (prints none), the integrations README (`https://api.heycall-e.com`), and the `calle-ai` 0.7.0 SDK (`CalleClient.__init__` default, same). The SDK's `calle/webhooks.py` marks its HMAC helpers deprecated — CALL-E webhooks are currently unsigned — which is why the receiver uses a path-token secret.
+
+**Decisions.** `_settle` does not poll when a webhook URL is configured; startup now refuses a webhook URL whose path does not end in the secret, so that mode cannot strand runs. Ambiguous-then-ambiguous creates block the mission with nothing persisted; the attempt record is process memory and `reconcile` refuses after restart — recovery is an operator step via `calle call status`/`recover`, documented in `04`. Fan-out uses one create with multiple `recipients[]` and `recipient_result_schema`. Negotiation injects the prior quote inside an untrusted fence and adds a `counter_offer_status` enum; verification mismatch marks both claims `CONFLICTED`. Handlers that rewrite `call_goal` (negotiation, clarification) skip the rewrite when a run exists.
+
+**Review.** Opus, diff-scoped, all nine bypass items attempted by execution. FAIL on one medium finding: `finalize_run` was check-then-act, and four concurrent finalizations wrote every claim four times (budget correct) — reachable because CALL-E delivers per-request *and* project-level webhooks. Fixed with a conditional `UPDATE … WHERE status IN ('queued','in_progress')`; only the winner writes claims. Three low findings (webhook URL/secret validation, cascade rerun get-or-create, negotiation/clarification double-inject) fixed in the same pass. Retest PASS with the reviewer's own concurrent probe.
+
+**Must not be changed accidentally.** `promote_to_terminal` as the single path from non-terminal to terminal; the webhook's receipt-before-side-effect ordering and authoritative re-read; `AmbiguousCreate` → replay, never a fresh POST; `patterns.py` having no `provider.` access.
+
+**Next.** Phase 5 — CS-040 evidence engine, CS-041 replanning, CS-042 constraint revision, CS-043 optimizer, CS-044 critic, CS-045 scheduler.
