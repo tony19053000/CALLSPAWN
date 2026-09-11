@@ -258,7 +258,7 @@ Claims inherit `FIXTURE` or `SIMULATED` from their producing provider, and that 
 **Tests** Conflict retention; staleness; provenance completeness on a full mission run; simulated-marker propagation into plan options.
 **Safety** Prevents laundering a phone statement into fact.
 **Demo** The evidence panel.
-**Status** PENDING
+**Status** DONE
 
 ### CS-041 — Replanning engine
 **Purpose** React to reality.
@@ -269,7 +269,7 @@ Claims inherit `FIXTURE` or `SIMULATED` from their producing provider, and that 
 **Tests** The bundle scenario; the stop-with-reason scenario; loop-guard against infinite replanning.
 **Safety** Replans still respect the call budget.
 **Demo** The "it changed its mind for a reason" beat.
-**Status** PENDING
+**Status** DONE
 
 ### CS-042 — Incremental constraint updates
 **Purpose** Change constraints without losing evidence.
@@ -280,7 +280,7 @@ Claims inherit `FIXTURE` or `SIMULATED` from their producing provider, and that 
 **Tests** Evidence-preservation assertion; selective staleness; locked component untouched.
 **Safety** No re-dialing of already-answered questions, which also protects the call budget.
 **Demo** The late-constraint-change beat.
-**Status** PENDING
+**Status** DONE
 
 ### CS-043 — Global optimizer
 **Purpose** Best complete solution, not cheapest parts.

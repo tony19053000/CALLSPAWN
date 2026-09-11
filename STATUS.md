@@ -1,18 +1,18 @@
 # STATUS — CallSwarm
 
-_Last updated: 2026-09-11 (Phase 4 complete)_
+_Last updated: 2026-09-12 (Phase 5a complete)_
 
 ## Overall completion
 
-**58%** — Phases 0–4 complete (20 of 36 active tickets, all reviewer-PASSed). Foundation, dynamic-swarm core, research layer, and the complete call layer: gated provider base, fake and real CALL-E providers, result schemas, scoring, approvals and gates, nine call patterns, hardened webhook receiver.
+**66%** — Phases 0–4 and 5a complete (23 of 36 active tickets, all reviewer-PASSed). Foundation, dynamic swarm, research, complete call layer, and now the Reality Graph evidence engine, the replanning engine, and incremental constraint revision.
 
 ## Current phase
 
-Phase 4 complete → Phase 5 (Evidence, optimization, review).
+Phase 5a complete → Phase 5b (optimizer, critic, scheduler).
 
 ## Current ticket
 
-`CS-040 — Reality Graph and evidence engine` (PENDING).
+`CS-043 — Global optimizer` (PENDING).
 
 ## Completed
 
@@ -32,13 +32,15 @@ Phase 4 complete → Phase 5 (Evidence, optimization, review).
 
 - **Phase 4b (CS-032, CS-035, CS-036) — reviewer PASS 2026-09-11 (Opus, per escalation rule)** after one FAIL (concurrent `finalize_run` duplicated claims). `calls/calle.py` `CalleProvider` against the Developer API with base URL re-confirmed from three live sources, explicit `recipients[]`, deterministic `Idempotency-Key`, no phone in `task` prose, exact enum mapping, `structured_result: null` as unresolved, paginated events, `AmbiguousCreate` → byte-identical replay never a fresh POST, `wait_for_terminal` with backoff; `calls/patterns.py` nine handlers all dialing only via `execute_call`; `api/webhooks.py` constant-time path token, receipt-before-side-effect, duplicate no-op, correlation check, authoritative re-read before any claim write; `CallRunRepository.promote_to_terminal` conditional UPDATE making finalization atomic; settings validator refusing a webhook URL that does not carry the secret. 447 tests.
 
+- **Phase 5a (CS-040, CS-041, CS-042) — reviewer PASS 2026-09-12, no findings.** `evidence/engine.py` is the single claim write path (research, calls, patterns and the agent write tool all route through it); pure `reconcile_group` with MULTI_SOURCE requiring independent sources, conflicts cross-linked and never averaged, `PHONE_ALLOWED_STATUSES` enforced in code, stale/reject keep rows, `derive` carries `simulated_lineage`; `GET .../evidence` + `/trace`. `orchestrator/replan.py` closed-enum actions validated in code, `AgentFactory.add_specialist` with the cap counted against live agents, over-budget `CALL_ROUND` rewritten, loop guard, every decision persisted. `orchestrator/revision.py` + `POST .../constraints` typed body, artifact dependency graph, selective staleness, evidence preserved byte-for-byte. 514 tests.
+
 ## In progress
 
 Nothing.
 
 ## Pending
 
-16 active tickets: CS-040 … CS-064 (excluding CS-046, deferred).
+13 active tickets: CS-043 … CS-064 (excluding CS-046, deferred).
 
 ## Blockers
 
@@ -69,10 +71,10 @@ Nothing.
 
 | Suite | State |
 | --- | --- |
-| Unit + integration (backend) | 447 passed — `backend/.venv/bin/python -m pytest` |
+| Unit + integration (backend) | 514 passed — `backend/.venv/bin/python -m pytest` |
 | End-to-end | not created (CS-060) |
 | Lint (ruff) | All checks passed |
-| Typecheck (mypy, strict) | Success: no issues found in 92 source files |
+| Typecheck (mypy, strict) | Success: no issues found in 102 source files |
 | Build (frontend) | not created (CS-050) |
 
 Test suite blocks all socket connects via `tests/conftest.py`; runs with `CALL_PROVIDER=fake`, `CALLE_LIVE_CALLS_ENABLED=false`.
@@ -176,4 +178,14 @@ Default-off call posture and secret handling are specified in `05_SECURITY_SAFET
 
 **Must not be changed accidentally.** `promote_to_terminal` as the single path from non-terminal to terminal; the webhook's receipt-before-side-effect ordering and authoritative re-read; `AmbiguousCreate` → replay, never a fresh POST; `patterns.py` having no `provider.` access.
 
-**Next.** Phase 5 — CS-040 evidence engine, CS-041 replanning, CS-042 constraint revision, CS-043 optimizer, CS-044 critic, CS-045 scheduler.
+### 2026-09-12 — Phase 5a: evidence engine, replanning, constraint revision (CS-040…CS-042)
+
+**Built.** The Reality Graph as a single write path, the replanning engine, and incremental revision. One coder session was cut by a rate limit after the evidence engine; resumed and completed.
+
+**Decisions.** `normalize_key`/`canonical_value` moved to `evidence/normalize.py` to break an import cycle; research depends on evidence, never the reverse. Prose claims (`call_summary`, `call_evidence`) and STALE/REJECTED/DERIVED claims never count as support. In-place replan actions (STOP/PRUNE/REVIVE) keep the mission in `REPLAN_DECISION_RUNNING` and the engine asks again, bounded by `MAX_ROUNDS=5`; the `03` bundle scenario is two persisted decisions (REVIVE then CREATE). Every applied non-PROCEED action marks existing `PlanOption`s stale. A `PlanOption` with empty `constraint_keys` is treated as depending on every hard constraint until the optimizer (CS-043) fills it. One transition added, `PLAN_OPTIONS_READY → MISSION_REVISION_RUNNING`, grounded in `03` "User constraint updates". `RevisionService` leaves the mission at `REPLAN_DECISION_RUNNING` and does not call the model — the orchestrator loop will.
+
+**Review.** Sonnet, diff-scoped, 44 probes, PASS with no findings.
+
+**Must not be changed accidentally.** `EvidenceEngine` as the only claim writer; `PHONE_ALLOWED_STATUSES`; `simulated_lineage` propagation in `derive`; the revision rule that claims, call runs and research artifacts are never touched.
+
+**Next.** Phase 5b — CS-043 optimizer, CS-044 critic, CS-045 scheduler.

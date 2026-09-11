@@ -103,6 +103,8 @@ class StrategyCandidateRow(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     status_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     revival_evidence_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
 
@@ -159,6 +161,8 @@ class AgentRunRow(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     stop_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     call_intent_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ResearchArtifactRow(Base):
@@ -280,6 +284,10 @@ class EvidenceClaimRow(Base):
     evidence_status: Mapped[str] = mapped_column(String(32), nullable=False)
     conflicts: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     entity_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    derived_from: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    simulated_lineage: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    superseded_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class PlanOptionRow(Base):
@@ -296,7 +304,30 @@ class PlanOptionRow(Base):
     uncertainties: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
     evidence_summary: Mapped[str] = mapped_column(Text, nullable=False)
     tradeoffs: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
+    constraint_keys: Mapped[list[Any]] = mapped_column(JSON, nullable=False, default=list)
+    stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    stale_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+
+
+class ReplanDecisionRow(Base):
+    """Append-only log of replan decisions (CS-041)."""
+
+    __tablename__ = "replan_decisions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    mission_id: Mapped[str] = _mission_fk()
+    trigger: Mapped[str] = mapped_column(String(32), nullable=False)
+    trigger_refs: Mapped[list[Any]] = mapped_column(JSON, nullable=False)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    proposed_action: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    rewrite_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    details: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    applied_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    outcome: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
 
 
 class ApprovalRow(Base):
@@ -377,6 +408,7 @@ MISSION_SCOPED_TABLES: tuple[type[Base], ...] = (
     CallIntentRow,
     ScheduledJobRow,
     ApprovalRow,
+    ReplanDecisionRow,
     PlanOptionRow,
     EvidenceClaimRow,
     InformationGapRow,

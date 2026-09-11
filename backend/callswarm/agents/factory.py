@@ -569,6 +569,104 @@ class AgentFactory:
             )
         return accepted
 
+    async def add_specialist(
+        self,
+        spec: MissionSpec,
+        strategies: list[StrategyCandidate],
+        proposal: AgentSpecProposal,
+        *,
+        reason: str,
+    ) -> AgentSpec | Rejection:
+        """Validate and persist one additional specialist for a running mission.
+
+        Same gates as :meth:`design_swarm` — tool allow-list, reserved names,
+        prohibited purposes, schema, ownership overlap against the *existing*
+        live agents — plus the complexity cap counted against live agents (any
+        state except STOPPED/FAILED). Returns the stored spec or the rejection
+        with its reason. Never calls the model: the proposal is the caller's.
+        """
+        mission = await self._mission(spec.mission_id)
+        async with self._database.session() as session:
+            existing = await AgentSpecRepository(session).list_by_mission(mission.id)
+        live = [a for a in existing if a.state not in (AgentState.STOPPED, AgentState.FAILED)]
+        cap = agent_cap(complexity_score(spec, strategies))
+        if len(live) >= cap:
+            rejection = Rejection(
+                proposal.name, f"agent cap {cap} reached: {len(live)} live specialist(s)"
+            )
+            await self._report(mission.id, SwarmValidation([], [rejection]))
+            return rejection
+        # Existing live agents are re-validated as proposals in front of the
+        # new one so overlap merging and duplicate names resolve against them.
+        as_proposals = [_proposal_from_spec(a) for a in live]
+        validation = self._validate([*as_proposals, proposal], mission.id, strategies)
+        key = _norm_name(proposal.name)
+        rejected = next((r for r in validation.rejections if r.name == proposal.name), None)
+        merged = next((m for m in validation.merges if m.dropped == proposal.name), None)
+        if rejected is not None:
+            await self._report(mission.id, SwarmValidation([], [rejected]))
+            return rejected
+        if merged is not None:
+            rejection = Rejection(
+                proposal.name,
+                f"ownership overlaps existing specialist {merged.into!r} ({merged.overlap:.2f})",
+            )
+            await self._report(mission.id, SwarmValidation([], [rejection]))
+            return rejection
+        accepted = next((a for a in validation.accepted if _norm_name(a.name) == key), None)
+        if accepted is None:
+            rejection = Rejection(proposal.name, "did not survive validation")
+            await self._report(mission.id, SwarmValidation([], [rejection]))
+            return rejection
+        # Dependencies were resolved against re-proposed live agents whose ids
+        # were regenerated; map them back to the persisted ids by name.
+        id_by_name = {_norm_name(a.name): a.id for a in live}
+        name_by_temp = {v: k for k, v in validation.name_to_id.items()}
+        dependencies = [
+            id_by_name[name_by_temp[d]]
+            for d in accepted.dependencies
+            if name_by_temp.get(d) in id_by_name
+        ]
+        stored_spec = accepted.model_copy(
+            update={
+                "dependencies": dependencies,
+                "state": AgentState.CREATED,
+                "state_reason": reason,
+            }
+        )
+        async with self._database.session() as session:
+            stored_spec = await AgentSpecRepository(session).add(stored_spec)
+        await self._emit(
+            mission.id,
+            ActivityEventType.AGENT_CREATED,
+            f"Specialist created: {stored_spec.name} — owns {stored_spec.owns} ({reason})",
+            agent_id=stored_spec.id,
+            name=stored_spec.name,
+            role=stored_spec.role,
+            allowed_tools=stored_spec.allowed_tools,
+            dependencies=stored_spec.dependencies,
+            risk_level=stored_spec.risk_level.value,
+            reason=reason,
+        )
+        return stored_spec
+
+
+def _proposal_from_spec(spec: AgentSpec) -> AgentSpecProposal:
+    return AgentSpecProposal(
+        name=spec.name,
+        role=spec.role,
+        objective=spec.objective,
+        why_needed=spec.why_needed,
+        owns=spec.owns or spec.objective,
+        required_inputs=list(spec.required_inputs),
+        dependencies=[],
+        allowed_tools=list(spec.allowed_tools),
+        expected_output_schema=spec.expected_output_schema,
+        does_not_control=list(spec.does_not_control),
+        stop_conditions=list(spec.stop_conditions),
+        risk_level=spec.risk_level,
+    )
+
 
 def _spec_for_model(spec: MissionSpec) -> dict[str, object]:
     return {

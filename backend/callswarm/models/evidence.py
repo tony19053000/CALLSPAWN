@@ -22,6 +22,29 @@ class EvidenceClaim(IdentifiedModel):
     evidence_status: EvidenceStatus = EvidenceStatus.UNKNOWN
     conflicts: list[str] = Field(default_factory=list, description="Conflicting claim ids")
     entity_id: str | None = None
+    derived_from: list[str] = Field(
+        default_factory=list, description="Input claim ids of a DERIVED claim"
+    )
+    simulated_lineage: bool = Field(
+        default=False,
+        description=(
+            "True when this claim, or any claim it derives from, is FIXTURE or SIMULATED. "
+            "Survives every derivation step and drives the UI badge."
+        ),
+    )
+    status_reason: str | None = Field(
+        default=None, description="Why the claim is STALE or REJECTED; set by the engine"
+    )
+    superseded_by: str | None = Field(
+        default=None, description="The newer claim that made this one STALE, if any"
+    )
+
+    @property
+    def is_simulated_or_fixture(self) -> bool:
+        return self.simulated_lineage or self.source_type in (
+            SourceType.FIXTURE,
+            SourceType.SIMULATED,
+        )
 
 
 class PlanComponent(DomainModel):
@@ -45,6 +68,15 @@ class PlanOption(IdentifiedModel):
     uncertainties: list[str] = Field(default_factory=list)
     evidence_summary: str = ""
     tradeoffs: list[str] = Field(default_factory=list)
+    constraint_keys: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Constraint keys this option was evaluated against. Empty means 'unknown', which "
+            "the revision engine treats as depending on every hard constraint."
+        ),
+    )
+    stale: bool = False
+    stale_reason: str | None = None
     created_at: datetime = Field(default_factory=utcnow)
 
     @property

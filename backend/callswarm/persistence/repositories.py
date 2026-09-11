@@ -31,6 +31,7 @@ from callswarm.models import (
     MissionTransition,
     PlanOption,
     RecipientResult,
+    ReplanDecision,
     ResearchArtifact,
     ScheduledJob,
     StrategyCandidate,
@@ -38,7 +39,7 @@ from callswarm.models import (
     WebhookReceipt,
 )
 from callswarm.models.base import IdentifiedModel
-from callswarm.models.enums import ScheduledJobStatus
+from callswarm.models.enums import EvidenceStatus, ScheduledJobStatus
 from callswarm.persistence.orm import (
     MISSION_SCOPED_TABLES,
     ActivityEventRow,
@@ -56,6 +57,7 @@ from callswarm.persistence.orm import (
     MissionTransitionRow,
     PlanOptionRow,
     RecipientResultRow,
+    ReplanDecisionRow,
     ResearchArtifactRow,
     ScheduledJobRow,
     StrategyCandidateRow,
@@ -363,6 +365,36 @@ class CallRunRepository(Repository[CallRun, CallRunRow]):
 class EvidenceClaimRepository(Repository[EvidenceClaim, EvidenceClaimRow]):
     domain = EvidenceClaim
     row = EvidenceClaimRow
+
+    async def list_by_mission(
+        self, mission_id: str, *, statuses: Sequence[EvidenceStatus] | None = None
+    ) -> list[EvidenceClaim]:
+        """Mission claims in a stable order (timestamp, then id) so a trace and a
+        page are deterministic."""
+        stmt = select(EvidenceClaimRow).where(EvidenceClaimRow.mission_id == mission_id)
+        if statuses is not None:
+            stmt = stmt.where(EvidenceClaimRow.evidence_status.in_([s.value for s in statuses]))
+        stmt = stmt.order_by(EvidenceClaimRow.timestamp, EvidenceClaimRow.id)
+        result = await self.session.execute(stmt)
+        return [self._from_row(row) for row in result.scalars()]
+
+
+class ReplanDecisionRepository(Repository[ReplanDecision, ReplanDecisionRow]):
+    """Append-only except for ``applied_at``/``outcome``, written once by the engine."""
+
+    domain = ReplanDecision
+    row = ReplanDecisionRow
+
+    async def list_by_mission(self, mission_id: str) -> list[ReplanDecision]:
+        result = await self.session.execute(
+            select(ReplanDecisionRow)
+            .where(ReplanDecisionRow.mission_id == mission_id)
+            .order_by(ReplanDecisionRow.created_at, ReplanDecisionRow.id)
+        )
+        return [self._from_row(row) for row in result.scalars()]
+
+    async def delete(self, id_: str) -> bool:
+        raise NotImplementedError("replan decisions are history and are never deleted")
 
 
 class PlanOptionRepository(Repository[PlanOption, PlanOptionRow]):

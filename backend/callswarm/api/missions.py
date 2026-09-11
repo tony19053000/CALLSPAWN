@@ -1,21 +1,27 @@
-"""Mission intake endpoints (CS-010)."""
+"""Mission intake endpoints (CS-010) and constraint revision (CS-042)."""
 
 from __future__ import annotations
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from callswarm.api.deps import get_intake_dep
+from callswarm.api.deps import get_database_dep, get_intake_dep, get_revision_service_dep
 from callswarm.llm import AgentOutputInvalid, LLMError
-from callswarm.models import AuthorityPolicy
+from callswarm.models import AuthorityPolicy, ConstraintChange
 from callswarm.orchestrator.intake import (
     MissionIntake,
     MissionNotAwaitingAnswersError,
     MissionView,
     UnknownQuestionError,
 )
+from callswarm.orchestrator.revision import (
+    RevisionNotAllowedError,
+    RevisionResult,
+    RevisionService,
+)
+from callswarm.persistence import Database, MissionRepository
 
 router = APIRouter(prefix="/api/missions", tags=["missions"])
 
@@ -40,6 +46,17 @@ class AnswersRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     answers: dict[str, Annotated[str, Field(max_length=MAX_ANSWER_LENGTH)]] = Field(min_length=1)
+
+
+class ConstraintChangeRequest(ConstraintChange):
+    """Typed revision body: no free text. At least one of updates, locks,
+    unlocks or preference_changes must be present."""
+
+    @model_validator(mode="after")
+    def _not_empty(self) -> ConstraintChangeRequest:
+        if not (self.updates or self.locks or self.unlocks or self.preference_changes):
+            raise ValueError("a constraint change must update, lock, unlock or re-weight something")
+        return self
 
 
 def _llm_errors(exc: LLMError) -> HTTPException:
@@ -91,3 +108,20 @@ async def answer_questions(
         ) from exc
     except LLMError as exc:
         raise _llm_errors(exc) from exc
+
+
+@router.post("/{mission_id}/constraints", response_model=RevisionResult)
+async def revise_constraints(
+    mission_id: str,
+    body: ConstraintChangeRequest,
+    database: Annotated[Database, Depends(get_database_dep)],
+    revision: Annotated[RevisionService, Depends(get_revision_service_dep)],
+) -> RevisionResult:
+    async with database.session() as session:
+        mission = await MissionRepository(session).get(mission_id)
+    if mission is None:
+        raise HTTPException(status_code=404, detail="mission not found")
+    try:
+        return await revision.apply(mission, ConstraintChange.model_validate(body.model_dump()))
+    except RevisionNotAllowedError as exc:
+        raise HTTPException(status_code=409, detail=exc.detail) from exc

@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from callswarm import __version__
-from callswarm.api import approvals, events, health, missions, webhooks
+from callswarm.api import approvals, events, evidence, health, missions, webhooks
 from callswarm.api.sanitizer_middleware import SanitizingJSONMiddleware
 from callswarm.calls.gates import CallGate
 from callswarm.calls.service import select_call_provider
@@ -109,6 +109,7 @@ def create_app(
     app.include_router(missions.router)
     app.include_router(events.router)
     app.include_router(approvals.router)
+    app.include_router(evidence.router)
     app.include_router(webhooks.router)
     return app
 

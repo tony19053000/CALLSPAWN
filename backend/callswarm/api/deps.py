@@ -8,8 +8,10 @@ from callswarm.approvals import ApprovalService
 from callswarm.calls.service import CallService
 from callswarm.config.settings import Settings
 from callswarm.events import ActivityEventEmitter
+from callswarm.evidence import EvidenceEngine
 from callswarm.llm import LLMProvider
 from callswarm.orchestrator.intake import MissionIntake
+from callswarm.orchestrator.revision import RevisionService
 from callswarm.orchestrator.state_machine import MissionStateMachine
 from callswarm.persistence import Database
 
@@ -58,3 +60,13 @@ def get_call_service_dep(request: Request) -> CallService:
         state.settings,
         state.state_machine,
     )
+
+
+def get_evidence_engine_dep(request: Request) -> EvidenceEngine:
+    state = request.app.state
+    return EvidenceEngine(state.database, state.emitter)
+
+
+def get_revision_service_dep(request: Request) -> RevisionService:
+    state = request.app.state
+    return RevisionService(state.database, state.emitter, state.state_machine)

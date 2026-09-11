@@ -103,6 +103,10 @@ class MissionSpec(DomainModel):
     assumptions: list[str] = Field(default_factory=list)
     clarification_questions: list[ClarificationQuestion] = Field(default_factory=list)
     authority_policy: AuthorityPolicy = Field(default_factory=AuthorityPolicy)
+    locked_components: list[str] = Field(
+        default_factory=list,
+        description="Component keys the user asked to keep unchanged across revisions",
+    )
 
 
 class Mission(IdentifiedModel):

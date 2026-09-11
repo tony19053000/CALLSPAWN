@@ -33,6 +33,9 @@ from callswarm.models import (
     Provenance,
     RecipientResult,
     RecipientStatus,
+    ReplanAction,
+    ReplanDecision,
+    ReplanTrigger,
     ResearchArtifact,
     ScheduledJob,
     ScheduledJobStatus,
@@ -58,6 +61,7 @@ from callswarm.persistence import (
     MissionRepository,
     MissionTransitionRepository,
     PlanOptionRepository,
+    ReplanDecisionRepository,
     ResearchArtifactRepository,
     ScheduledJobRepository,
     StrategyCandidateRepository,
@@ -176,6 +180,15 @@ async def _populate(database: Database, mission_id: str) -> dict[str, str]:
         ids["plan_options"] = (
             await PlanOptionRepository(s).add(PlanOption(mission_id=mission_id, name="n"))
         ).id
+        ids["replan_decisions"] = (
+            await ReplanDecisionRepository(s).add(
+                ReplanDecision(
+                    mission_id=mission_id,
+                    trigger=ReplanTrigger.NEW_EVIDENCE,
+                    action=ReplanAction.PROCEED_TO_OPTIMIZATION,
+                )
+            )
+        ).id
         ids["approvals"] = (
             await ApprovalRepository(s).add(
                 Approval(
@@ -231,6 +244,7 @@ async def test_schema_covers_every_persisted_entity(database: Database) -> None:
         "scheduled_jobs",
         "mission_transitions",
         "webhook_receipts",  # CS-036 event-id idempotency record
+        "replan_decisions",  # CS-041 replan decision log
     }
 
 

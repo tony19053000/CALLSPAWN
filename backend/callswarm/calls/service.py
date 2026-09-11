@@ -52,6 +52,7 @@ from callswarm.calls.provider import (
 from callswarm.calls.schema import validate_result_against_schema
 from callswarm.config.settings import Settings
 from callswarm.events import ActivityEventEmitter
+from callswarm.evidence import EvidenceEngine
 from callswarm.models import (
     ActivityEvent,
     ActivityEventType,
@@ -241,6 +242,7 @@ class CallService:
         emitter: ActivityEventEmitter,
         settings: Settings,
         state_machine: MissionStateMachine,
+        evidence: EvidenceEngine | None = None,
     ) -> None:
         self.provider = provider
         self._gate = gate
@@ -249,6 +251,9 @@ class CallService:
         self._emitter = emitter
         self._settings = settings
         self._machine = state_machine
+        # The only way call results become claims: the engine reconciles them
+        # against prior evidence and never assigns a verified-truth status.
+        self._evidence = evidence or EvidenceEngine(database, emitter)
 
     async def _emit(self, mission_id: str, summary: str, **payload: object) -> None:
         await self._emitter.emit(
@@ -543,9 +548,8 @@ class CallService:
             result_valid=result_valid,
             recipient_subjects=recipient_subjects,
         )
-        async with self._database.session() as session:
-            claim_repo = EvidenceClaimRepository(session)
-            claims = [await claim_repo.add(c) for c in claims]
+        ingested = await self._evidence.ingest(claims, source=f"call_run:{stored.id}")
+        claims = ingested.claims
         for status in (CallStatus.IN_PROGRESS, stored.status):
             await self._emit(
                 mission.id,
@@ -578,10 +582,13 @@ class CallService:
         await self._emit(
             mission.id,
             f"Recorded {len(claims)} claim(s) from the call, source {source.value}, status "
-            f"{EvidenceStatus.PHONE_SUPPORTED.value} for structured answers.",
+            f"{EvidenceStatus.PHONE_SUPPORTED.value} for structured answers unless prior "
+            f"evidence corroborates or contradicts them.",
             call_intent_id=intent.id,
             call_run_id=stored.id,
             source_type=source.value,
             claim_count=len(claims),
+            conflicted_claim_ids=ingested.conflicted_ids,
+            corroborated_claim_ids=ingested.corroborated_ids,
         )
         return claims, bool(validation_errors)

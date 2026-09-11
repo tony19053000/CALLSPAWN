@@ -139,6 +139,11 @@ class Settings(BaseSettings):
     prohibited_agent_purposes: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: list(DEFAULT_PROHIBITED_AGENT_PURPOSES)
     )
+    # Replan loop guard: total decisions per mission, and how many consecutive
+    # decisions may repeat the same action on the same target before code
+    # forces PROCEED_TO_OPTIMIZATION.
+    replan_max_per_mission: int = Field(default=12, ge=1)
+    replan_max_consecutive_same: int = Field(default=3, ge=1)
 
     # --- Persistence ---------------------------------------------------------
     database_url: SecretStr = SecretStr("sqlite+aiosqlite:///./callswarm.db")

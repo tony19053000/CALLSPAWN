@@ -21,6 +21,7 @@ from pydantic import Field
 
 from callswarm.config.settings import Settings
 from callswarm.events import ActivityEventEmitter
+from callswarm.evidence import EvidenceEngine
 from callswarm.llm import LLMProvider
 from callswarm.models import (
     ActivityEvent,
@@ -39,7 +40,6 @@ from callswarm.models import (
 from callswarm.persistence import (
     CandidateEntityRepository,
     Database,
-    EvidenceClaimRepository,
     InformationGapRepository,
     ResearchArtifactRepository,
 )
@@ -108,12 +108,16 @@ class ResearchService:
         emitter: ActivityEventEmitter,
         *,
         fallback_reason: str | None = None,
+        evidence: EvidenceEngine | None = None,
     ) -> None:
         self.provider = provider
         self.fallback_reason = fallback_reason
         self._llm = llm
         self._database = database
         self._emitter = emitter
+        # Claims are never written here directly: the evidence engine is the
+        # single write path and owns reconciliation.
+        self._evidence = evidence or EvidenceEngine(database, emitter)
         self._fallback_recorded: set[str] = set()
 
     # --- blocker -----------------------------------------------------------------
@@ -212,8 +216,6 @@ class ResearchService:
         )
         excluded_ids = {e.candidate_id for e in exclusions}
         report = identify_gaps(mission.id, shortlist, decision_attributes or [], normalized.claims)
-        conflicted = {c.id: c for c in report.conflicted_claims}
-        claims = [conflicted.get(c.id, c) for c in normalized.claims]
         async with self._database.session() as session:
             artifacts = ResearchArtifactRepository(session)
             for artifact in normalized.artifacts:
@@ -226,12 +228,12 @@ class ResearchService:
                     await candidates.add(
                         candidate.model_copy(update={"passed_hard_constraints": False})
                     )
-            claim_repo = EvidenceClaimRepository(session)
-            for claim in claims:
-                await claim_repo.add(claim)
             gap_repo = InformationGapRepository(session)
             for gap in report.gaps:
                 await gap_repo.add(gap)
+        # The engine reconciles against everything already known for the
+        # mission, so a conflict with an earlier pass is caught here too.
+        await self._evidence.ingest(normalized.claims, source=f"research_pass:{self.provider.name}")
         source_types = sorted({a.source_type.value for a in normalized.artifacts})
         result = ResearchPassResult(
             discovered=len(raw),

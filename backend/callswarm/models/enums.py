@@ -121,6 +121,31 @@ class EvidenceStatus(StrEnum):
     REJECTED = "REJECTED"
 
 
+class ReplanTrigger(StrEnum):
+    """What prompted a replan decision (03 "Replanning")."""
+
+    NEW_EVIDENCE = "NEW_EVIDENCE"
+    CONFLICT = "CONFLICT"
+    CALL_RESULT = "CALL_RESULT"
+    CRITIC_FAIL = "CRITIC_FAIL"
+    CONSTRAINT_CHANGE = "CONSTRAINT_CHANGE"
+    STRATEGY_IMPOSSIBLE = "STRATEGY_IMPOSSIBLE"
+
+
+class ReplanAction(StrEnum):
+    """The closed set of actions a replan decision may take. The model
+    proposes one; code validates and applies it."""
+
+    RERUN_AGENT = "RERUN_AGENT"
+    CREATE_SPECIALIST = "CREATE_SPECIALIST"
+    STOP_AGENT = "STOP_AGENT"
+    PRUNE_STRATEGY = "PRUNE_STRATEGY"
+    REVIVE_STRATEGY = "REVIVE_STRATEGY"
+    RESEARCH_PASS = "RESEARCH_PASS"
+    CALL_ROUND = "CALL_ROUND"
+    PROCEED_TO_OPTIMIZATION = "PROCEED_TO_OPTIMIZATION"
+
+
 class Freshness(StrEnum):
     FRESH = "FRESH"
     AGING = "AGING"

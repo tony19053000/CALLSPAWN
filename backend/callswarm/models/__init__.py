@@ -28,6 +28,8 @@ from callswarm.models.enums import (
     Importance,
     MissionStatus,
     RecipientStatus,
+    ReplanAction,
+    ReplanTrigger,
     RiskLevel,
     ScheduledJobStatus,
     SourceType,
@@ -47,6 +49,7 @@ from callswarm.models.mission import (
     MissionTransition,
     SoftPreference,
 )
+from callswarm.models.replan import ConstraintChange, ConstraintUpdate, ReplanDecision
 from callswarm.models.research import (
     CandidateEntity,
     ContactInfo,
@@ -86,7 +89,9 @@ __all__ = [
     "CandidateEntity",
     "ClarificationQuestion",
     "CompletionConfidence",
+    "ConstraintChange",
     "ConstraintOperator",
+    "ConstraintUpdate",
     "ContactInfo",
     "DomainModel",
     "EvidenceClaim",
@@ -110,6 +115,9 @@ __all__ = [
     "RawResult",
     "RecipientResult",
     "RecipientStatus",
+    "ReplanAction",
+    "ReplanDecision",
+    "ReplanTrigger",
     "ResearchArtifact",
     "ResearchQuery",
     "RiskLevel",

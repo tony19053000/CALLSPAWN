@@ -81,7 +81,12 @@ _TABLE: dict[MissionStatus, frozenset[MissionStatus]] = {
     # Loop-back: a critic FAIL re-enters the replan decision.
     S.REVIEW_FAILED: frozenset({S.REPLAN_DECISION_RUNNING}),
     S.REVIEW_PASSED: frozenset({S.PLAN_OPTIONS_READY}),
-    S.PLAN_OPTIONS_READY: frozenset({S.USER_DECISION_PENDING, S.COMPLETE}),
+    # A user constraint change can arrive as soon as options are presented,
+    # before the user has formally entered a decision (03 "User constraint
+    # updates": mission state persists; derived artifacts go stale in place).
+    S.PLAN_OPTIONS_READY: frozenset(
+        {S.USER_DECISION_PENDING, S.MISSION_REVISION_RUNNING, S.COMPLETE}
+    ),
     S.USER_DECISION_PENDING: frozenset({S.MISSION_REVISION_RUNNING, S.COMPLETE}),
     # Loop-back: a user constraint change re-enters the loop at the earliest
     # stage whose artifacts went stale (03 "User constraint updates").

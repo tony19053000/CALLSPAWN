@@ -27,6 +27,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from callswarm.events import ActivityEventEmitter
+from callswarm.evidence import EvidenceEngine
 from callswarm.llm.prompt import untrusted_block
 from callswarm.models import (
     ActivityEvent,
@@ -36,11 +37,8 @@ from callswarm.models import (
     CallAuthorizationState,
     CallIntent,
     CallRecipient,
-    EvidenceClaim,
-    EvidenceStatus,
     JsonValue,
     ResearchQuery,
-    SourceType,
 )
 from callswarm.persistence import (
     AgentRequestRepository,
@@ -225,30 +223,42 @@ class _WriteArgs(BaseModel):
     value: JsonValue = None
     source_reference: str = ""
     entity_id: str | None = None
+    derived_from: list[str] = Field(
+        default_factory=list, description="Ids of the claims this one is derived from"
+    )
 
 
 class EvidenceWriteClaimTool:
     name = "evidence.write_claim"
     description = (
         "Record a derived claim. Arguments: subject, predicate, value, source_reference "
-        "(what it was derived from). Claims written by agents are always marked DERIVED."
+        "(what it was derived from), derived_from (ids of the claims it rests on). Claims "
+        "written by agents are always marked DERIVED and inherit any simulated or fixture "
+        "provenance of their inputs."
     )
 
     async def __call__(self, context: ToolContext, arguments: dict[str, Any]) -> dict[str, Any]:
         args = _parse(_WriteArgs, arguments)
-        claim = EvidenceClaim(
-            mission_id=context.mission_id,
-            subject=args.subject,
-            predicate=args.predicate,
-            value=args.value,
-            source_type=SourceType.DERIVED,
-            source_reference=f"agent:{context.agent.id};run:{context.run_id};{args.source_reference}",
-            evidence_status=EvidenceStatus.UNKNOWN,
-            entity_id=args.entity_id,
-        )
-        async with context.database.session() as session:
-            stored = await EvidenceClaimRepository(session).add(claim)
-        return {"claim_id": stored.id, "source_type": stored.source_type.value}
+        engine = EvidenceEngine(context.database, context.emitter)
+        try:
+            stored = await engine.derive(
+                context.mission_id,
+                args.subject,
+                args.predicate,
+                args.value,
+                derived_from=args.derived_from,
+                source_reference=(
+                    f"agent:{context.agent.id};run:{context.run_id};{args.source_reference}"
+                ),
+                entity_id=args.entity_id,
+            )
+        except KeyError as exc:
+            return {"status": "INVALID_ARGUMENTS", "tool": self.name, "detail": str(exc)}
+        return {
+            "claim_id": stored.id,
+            "source_type": stored.source_type.value,
+            "simulated_lineage": stored.simulated_lineage,
+        }
 
 
 # --- calls ----------------------------------------------------------------------------

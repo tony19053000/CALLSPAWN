@@ -15,11 +15,9 @@ counts. The compact per-candidate table is a structured artifact for the UI.
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
 from pydantic import Field
 
+from callswarm.evidence.normalize import canonical_value, normalize_key
 from callswarm.models import (
     AttributeKnowledge,
     CandidateEntity,
@@ -31,7 +29,7 @@ from callswarm.models import (
     MissionSpec,
     StrategyCandidate,
 )
-from callswarm.research.pipeline import lookup_attribute, normalize_key
+from callswarm.research.pipeline import lookup_attribute
 
 DEFAULT_RESOLUTION_METHODS: tuple[str, ...] = ("web", "call", "user")
 
@@ -138,22 +136,6 @@ def decision_attributes_from_mission(
 # --- classification -----------------------------------------------------------------
 
 
-def _canonical(value: Any) -> str:
-    """Comparable form of a claim value. Numbers compare numerically, strings
-    case-insensitively; structures by sorted JSON."""
-    if isinstance(value, bool):
-        return f"bool:{value}"
-    if isinstance(value, int | float):
-        return f"num:{float(value)}"
-    if isinstance(value, str):
-        stripped = value.strip()
-        try:
-            return f"num:{float(stripped.replace(',', ''))}"
-        except ValueError:
-            return "str:" + " ".join(stripped.lower().split())
-    return "json:" + json.dumps(value, sort_keys=True, default=str)
-
-
 def _claims_for(
     claims: list[EvidenceClaim], candidate: CandidateEntity, key: str
 ) -> list[EvidenceClaim]:
@@ -177,7 +159,7 @@ def classify(
         if present:
             return AttributeKnowledge.KNOWN, CONFIDENCE_ATTRIBUTE_ONLY, []
         return AttributeKnowledge.UNKNOWN, CONFIDENCE_UNKNOWN, []
-    distinct = {_canonical(c.value) for c in relevant}
+    distinct = {canonical_value(c.value) for c in relevant}
     if len(distinct) > 1:
         return AttributeKnowledge.CONFLICTED, CONFIDENCE_CONFLICTED, relevant
     sources = {c.source_reference for c in relevant}

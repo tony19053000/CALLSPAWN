@@ -20,6 +20,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from callswarm.evidence.normalize import normalize_key
 from callswarm.llm import LLMProvider
 from callswarm.models import (
     CandidateEntity,
@@ -112,10 +113,6 @@ class ConstraintFilterResult(NamedTuple):
 
 
 # --- helpers -----------------------------------------------------------------------------
-
-
-def normalize_key(key: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", key.strip().lower()).strip("_")
 
 
 def normalize_name(name: str) -> str:

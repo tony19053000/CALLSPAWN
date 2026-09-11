@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 import callswarm.agents as agents_pkg
+import callswarm.evidence as evidence_pkg
 import callswarm.orchestrator as orchestrator_pkg
 import callswarm.strategies as strategies_pkg
 from callswarm.agents.factory import (
@@ -381,9 +382,13 @@ DOMAIN_PATTERN = re.compile(
 
 
 @pytest.mark.parametrize(
-    "package", [agents_pkg, strategies_pkg, orchestrator_pkg], ids=lambda p: p.__name__
+    "package",
+    [agents_pkg, strategies_pkg, orchestrator_pkg, evidence_pkg],
+    ids=lambda p: p.__name__,
 )
 def test_framework_source_contains_no_domain_nouns(package: Any) -> None:
+    """Covers every module in the package, including ``orchestrator/replan.py``
+    and ``orchestrator/revision.py`` (CS-041/042) and ``evidence/`` (CS-040)."""
     package_dir = Path(package.__file__).parent
     offenders: list[str] = []
     for path in sorted(package_dir.rglob("*.py")):

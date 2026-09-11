@@ -27,5 +27,9 @@ class StrategyCandidate(IdentifiedModel):
     revival_evidence_ref: str | None = Field(
         default=None, description="Reference to the evidence that revived a pruned strategy"
     )
+    stale: bool = Field(
+        default=False, description="A constraint it depends on changed after it was produced"
+    )
+    stale_reason: str | None = None
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

@@ -858,52 +858,38 @@ class PatternRunner:
     async def compare_claims(
         self, fresh: list[EvidenceClaim], prior: list[EvidenceClaim]
     ) -> tuple[list[str], list[str]]:
-        """Mismatch → both CONFLICTED with cross-references; match → both
-        MULTI_SOURCE_SUPPORTED. Returns (conflicted ids, corroborated ids)."""
-        conflicted: list[str] = []
-        corroborated: list[str] = []
-        by_predicate: dict[str, list[EvidenceClaim]] = {}
-        for claim in prior:
-            by_predicate.setdefault(claim.predicate, []).append(claim)
+        """Read the evidence engine's verdict for the fresh claims against the
+        named prior claims. The engine already reconciled and persisted every
+        status when the call result was ingested: a mismatch made both
+        CONFLICTED with cross-references, a match made both
+        MULTI_SOURCE_SUPPORTED. Returns (conflicted ids, corroborated ids)
+        restricted to the fresh claims and the prior claims they were checked
+        against. Nothing is written here."""
+        conflicted: set[str] = set()
+        corroborated: set[str] = set()
+        prior_by_id = {p.id: p for p in prior}
         async with self.database.session() as session:
             repo = EvidenceClaimRepository(session)
-            for claim in fresh:
-                if claim.evidence_status is not EvidenceStatus.PHONE_SUPPORTED:
-                    continue
-                for earlier in by_predicate.get(claim.predicate, []):
-                    if earlier.id == claim.id:
-                        continue
-                    if _same_value(claim.value, earlier.value):
-                        await repo.update(
-                            claim.model_copy(
-                                update={"evidence_status": EvidenceStatus.MULTI_SOURCE_SUPPORTED}
-                            )
-                        )
-                        await repo.update(
-                            earlier.model_copy(
-                                update={"evidence_status": EvidenceStatus.MULTI_SOURCE_SUPPORTED}
-                            )
-                        )
-                        corroborated.extend([claim.id, earlier.id])
-                    else:
-                        await repo.update(
-                            claim.model_copy(
-                                update={
-                                    "evidence_status": EvidenceStatus.CONFLICTED,
-                                    "conflicts": sorted({*claim.conflicts, earlier.id}),
-                                }
-                            )
-                        )
-                        await repo.update(
-                            earlier.model_copy(
-                                update={
-                                    "evidence_status": EvidenceStatus.CONFLICTED,
-                                    "conflicts": sorted({*earlier.conflicts, claim.id}),
-                                }
-                            )
-                        )
-                        conflicted.extend([claim.id, earlier.id])
-        return sorted(set(conflicted)), sorted(set(corroborated))
+            current = {c.id: await repo.get(c.id) for c in fresh}
+        for claim in fresh:
+            stored = current.get(claim.id)
+            if stored is None or stored.predicate in NON_ATTRIBUTE_PREDICATES:
+                continue
+            if stored.evidence_status is EvidenceStatus.CONFLICTED:
+                against = [cid for cid in stored.conflicts if cid in prior_by_id]
+                if against:
+                    conflicted.update([stored.id, *against])
+            elif stored.evidence_status is EvidenceStatus.MULTI_SOURCE_SUPPORTED:
+                against = [
+                    p.id
+                    for p in prior
+                    if p.id != stored.id
+                    and p.predicate == stored.predicate
+                    and _same_value(p.value, stored.value)
+                ]
+                if against:
+                    corroborated.update([stored.id, *against])
+        return sorted(conflicted), sorted(corroborated)
 
 
 def outcome_dialed_runs(outcome: PatternOutcome) -> list[CallRun]:

@@ -63,3 +63,7 @@ class AgentRun(IdentifiedModel):
     call_intent_id: str | None = Field(
         default=None, description="Set when the run is WAITING_FOR_CALL on a requested intent"
     )
+    stale: bool = Field(
+        default=False, description="The output depends on a constraint that changed since"
+    )
+    stale_reason: str | None = None
